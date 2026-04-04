@@ -12,9 +12,9 @@ long_description    Cross-platform CLI tool for managing project folders, \
                     their metadata, and links. Organizes projects by topic \
                     using a tag-driven link tree.
 
-checksums           rmd160  PLACEHOLDER \
-                    sha256  PLACEHOLDER \
-                    size    PLACEHOLDER
+checksums           rmd160  598d0dcab1dadf92e8ee1fa6782c65dcf7ae7e96 \
+                    sha256  48aa52900d4fe5ac2dacc704aaf2f03f29b324ceb1c713cfbc2b61791c5ec4dd \
+                    size    40756
 
 build.args-append   -ldflags "-s -w -X github.com/gorodulin/prj/cmd.version=${version}"
 

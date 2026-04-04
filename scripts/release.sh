@@ -142,7 +142,7 @@ fi
 if gh release view "$TAG" >/dev/null 2>&1; then
     warn "GitHub release $TAG already exists — skipping"
 else
-    gh release create "$TAG" --title "$TAG" --notes-from-tag
+    gh release create "$TAG" --title "$TAG" --generate-notes
     info "Created GitHub release $TAG"
 fi
 

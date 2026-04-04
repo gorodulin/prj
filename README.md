@@ -2,14 +2,39 @@
 
 Cross-platform CLI tool for managing project folders, their metadata, and links.
 
+## Install
+
+### macOS (Homebrew)
+
+```bash
+brew tap gorodulin/tap
+brew install prj
+```
+
+### From source
+
+Requires Go 1.19+:
+
+```bash
+go install github.com/gorodulin/prj@latest
+```
+
+Or clone and build:
+
+```bash
+git clone https://github.com/gorodulin/prj.git
+cd prj
+make install
+```
+
 ## Quick start
 
-1. Install: `make install`
-2. Create a config file (see [Config](#config) for the path on your platform):
+1. Create a config file (see [Config](#config) for the path on your platform):
    ```json
    { "projects_folder": "/path/to/your/projects" }
    ```
-3. Create your first project:
+
+2. Create your first project:
    ```bash
    prj new --title "My Project"
    ```
