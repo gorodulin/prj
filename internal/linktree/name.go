@@ -134,9 +134,6 @@ func mangleReservedName(name string) string {
 func ResolveNames(projects []ProjectEntry, format string, fm template.FuncMap) map[string]string {
 	format = migrateOldFormat(format)
 
-	// If the format already embeds the ID, names are inherently unique.
-	formatHasID := strings.Contains(format, ".ID")
-
 	tmpl, err := template.New("link").Funcs(fm).Parse(format)
 	if err != nil {
 		// Bad template — fall back to just IDs.
@@ -153,17 +150,13 @@ func ResolveNames(projects []ProjectEntry, format string, fm template.FuncMap) m
 		raw[p.ID] = renderLinkName(tmpl, p)
 	}
 
-	if formatHasID {
-		return raw
-	}
-
 	// Detect collisions: count occurrences of each name.
 	counts := make(map[string]int, len(raw))
 	for _, name := range raw {
 		counts[name]++
 	}
 
-	// Second pass: disambiguate colliders.
+	// Second pass: disambiguate colliders with " (<ID>)" suffix.
 	result := make(map[string]string, len(projects))
 	for _, p := range projects {
 		name := raw[p.ID]

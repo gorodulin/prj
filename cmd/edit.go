@@ -35,8 +35,8 @@ func runEdit(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("load config: %w", err)
 	}
 
-	if cfg.MetadataFolder == "" {
-		return fmt.Errorf("no metadata folder configured")
+	if err := requireConfig(cfg, "metadata_folder", "machine_name", "machine_id"); err != nil {
+		return err
 	}
 
 	id, err := expandProjectID(args[0], cfg)

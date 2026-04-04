@@ -28,8 +28,8 @@ func runPath(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("load config: %w", err)
 	}
 
-	if cfg.ProjectsFolder == "" {
-		return fmt.Errorf("no projects folder configured")
+	if err := requireConfig(cfg, "projects_folder"); err != nil {
+		return err
 	}
 
 	id, err := expandProjectID(args[0], cfg)

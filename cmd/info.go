@@ -33,8 +33,8 @@ func runInfo(cmd *cobra.Command, args []string) error {
 		return infoError(jsonOut, fmt.Errorf("load config: %w", err))
 	}
 
-	if cfg.ProjectsFolder == "" {
-		return infoError(jsonOut, fmt.Errorf("no projects folder configured"))
+	if err := requireConfig(cfg, "projects_folder"); err != nil {
+		return infoError(jsonOut, err)
 	}
 
 	id, err := expandProjectID(args[0], cfg)

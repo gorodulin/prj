@@ -197,6 +197,18 @@ func TestResolveNames(t *testing.T) {
 			format:   "{project_id} {project_title}",
 			want:     map[string]string{"id1": "id1 Utils", "id2": "id2 Utils"},
 		},
+		{
+			name: "date-derived ID collision gets suffix",
+			projects: []ProjectEntry{
+				{ID: "01JQHG0000AAAAAAAAAAAAAAAA", Title: "Utils"},
+				{ID: "01JQHG0000BBBBBBBBBBBBBBBB", Title: "Utils"},
+			},
+			format: `{{.ID | date "YY-MM-DD"}} {{.Title}}`,
+			want: map[string]string{
+				"01JQHG0000AAAAAAAAAAAAAAAA": "25-03-29 Utils (01JQHG0000AAAAAAAAAAAAAAAA)",
+				"01JQHG0000BBBBBBBBBBBBBBBB": "25-03-29 Utils (01JQHG0000BBBBBBBBBBBBBBBB)",
+			},
+		},
 	}
 
 	for _, tt := range tests {

@@ -9,7 +9,7 @@ import (
 )
 
 // DefaultFormat is the built-in template used when no format is configured.
-const DefaultFormat = `{{.ID}}` + "\t" + `{{.Local | flag}}` + "\t" + `{{.Title}}` + "\t" + `{{.Tags | join ","}}`
+const DefaultFormat = `{{.ID | red}} {{.Local | flag}} {{.ID | date "YY-MM-DD" | cyan}} {{.Title | yellow}} {{.Tags | join ", " | blue}}`
 
 // Options controls formatter behavior.
 type Options struct {
@@ -17,11 +17,12 @@ type Options struct {
 }
 
 // Format writes projects to w in the requested format.
-// Named formats: "table" (alias for DefaultFormat), "json", "jsonl".
+// Named formats: "json", "jsonl".
 // If format contains "{{", it is treated as a Go text/template string.
+// Empty string uses DefaultFormat.
 func Format(w io.Writer, projects []project.Project, format string, opts Options) error {
 	switch {
-	case format == "" || format == "table":
+	case format == "":
 		return formatTemplate(w, projects, DefaultFormat, opts)
 	case format == "json":
 		return formatJSON(w, projects, opts)
@@ -30,7 +31,7 @@ func Format(w io.Writer, projects []project.Project, format string, opts Options
 	case strings.Contains(format, "{{"):
 		return formatTemplate(w, projects, format, opts)
 	default:
-		return fmt.Errorf("unknown format %q (use table, json, jsonl, or a Go template)", format)
+		return fmt.Errorf("unknown format %q (use json, jsonl, or a Go template)", format)
 	}
 }
 

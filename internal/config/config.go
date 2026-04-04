@@ -48,6 +48,14 @@ type Config struct {
 	MachineName     string `json:"machine_name,omitempty"`
 	MachineID       string `json:"machine_id,omitempty"`
 	RetentionDays   int    `json:"retention_days,omitempty"`
+
+	explicitKeys map[string]bool // keys present in the JSON file (not defaults)
+}
+
+// IsExplicit reports whether the given JSON key was present in the config file
+// (as opposed to being filled in by a default).
+func (c Config) IsExplicit(key string) bool {
+	return c.explicitKeys[key]
 }
 
 // DefaultPath returns the platform-appropriate config file path.
@@ -80,10 +88,21 @@ func Load(path string) (Config, error) {
 		return Config{}, fmt.Errorf("read config %s: %w", path, err)
 	}
 
+	// First pass: determine which keys were explicitly set in the file.
+	var raw map[string]json.RawMessage
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return Config{}, fmt.Errorf("parse config %s: %w", path, err)
+	}
+	fileKeys := make(map[string]bool, len(raw))
+	for k := range raw {
+		fileKeys[k] = true
+	}
+
 	var cfg Config
 	if err := json.Unmarshal(data, &cfg); err != nil {
 		return Config{}, fmt.Errorf("parse config %s: %w", path, err)
 	}
+	cfg.explicitKeys = fileKeys
 
 	// Default metadata suffix when metadata folder is configured.
 	if cfg.MetadataFolder != "" && cfg.MetadataSuffix == "" {
@@ -95,7 +114,7 @@ func Load(path string) (Config, error) {
 		cfg.ProjectIDType = DefaultProjectIDType
 	}
 
-	if err := cfg.validate(); err != nil {
+	if err := cfg.Validate(); err != nil {
 		return Config{}, fmt.Errorf("invalid config: %w", err)
 	}
 
@@ -105,7 +124,7 @@ func Load(path string) (Config, error) {
 // validate checks config field values for obvious errors.
 // It validates enums, path absoluteness, and dangerous path overlaps.
 // It does NOT check whether fields are present — that's command-specific.
-func (c Config) validate() error {
+func (c Config) Validate() error {
 	// Enum: link_kind
 	if c.LinkKind != "" && !containsStr(ValidLinkKinds, c.LinkKind) {
 		return fmt.Errorf("link_kind %q is not recognized (use %s)", c.LinkKind, JoinQuoted(ValidLinkKinds))

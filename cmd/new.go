@@ -31,8 +31,8 @@ func runNew(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("load config: %w", err)
 	}
 
-	if cfg.ProjectsFolder == "" {
-		return fmt.Errorf("no projects folder configured")
+	if err := requireConfig(cfg, "projects_folder"); err != nil {
+		return err
 	}
 
 	ids, err := collectIDs(cfg)
@@ -58,30 +58,29 @@ func runNew(cmd *cobra.Command, args []string) error {
 	// Create metadata snapshot if title or tags provided.
 	hasTitle := title != ""
 	if hasTitle || len(tags) > 0 {
-		if cfg.MetadataFolder == "" {
-			fmt.Fprintln(os.Stderr, "Warning: no metadata folder configured, skipping metadata creation")
-		} else {
-			var titleSet *string
-			if hasTitle {
-				titleSet = &title
-			}
-			metaDir := cfg.MetadataDir(newID)
-			s := metadata.Snapshot{
-				TitleSet:    titleSet,
-				Tags:        tags,
-				TagsAdded:   tags,
-				MachineID:   cfg.MachineID,
-				MachineName: cfg.MachineName,
-				Version:     1,
-			}
-			if _, err := metadata.WriteSnapshot(metaDir, s); err != nil {
-				return fmt.Errorf("write metadata for %s: %w", newID, err)
-			}
-			if n, err := metadata.PurgeOldSnapshots(metaDir, cfg.RetentionDays); err != nil {
-				fmt.Fprintf(os.Stderr, "Warning: purge old snapshots for %s: %v\n", newID, err)
-			} else if n > 0 {
-				fmt.Fprintf(os.Stderr, "Purged %d old snapshot(s) for %s\n", n, newID)
-			}
+		if err := requireConfig(cfg, "metadata_folder", "machine_name", "machine_id"); err != nil {
+			return err
+		}
+		var titleSet *string
+		if hasTitle {
+			titleSet = &title
+		}
+		metaDir := cfg.MetadataDir(newID)
+		s := metadata.Snapshot{
+			TitleSet:    titleSet,
+			Tags:        tags,
+			TagsAdded:   tags,
+			MachineID:   cfg.MachineID,
+			MachineName: cfg.MachineName,
+			Version:     1,
+		}
+		if _, err := metadata.WriteSnapshot(metaDir, s); err != nil {
+			return fmt.Errorf("write metadata for %s: %w", newID, err)
+		}
+		if n, err := metadata.PurgeOldSnapshots(metaDir, cfg.RetentionDays); err != nil {
+			fmt.Fprintf(os.Stderr, "Warning: purge old snapshots for %s: %v\n", newID, err)
+		} else if n > 0 {
+			fmt.Fprintf(os.Stderr, "Purged %d old snapshot(s) for %s\n", n, newID)
 		}
 	}
 

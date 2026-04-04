@@ -14,8 +14,8 @@ import (
 // resolveCurrentProjectID resolves the magic "current" ID to the actual
 // project ID by checking if the cwd is inside projects_folder.
 func resolveCurrentProjectID(cfg config.Config) (string, error) {
-	if cfg.ProjectsFolder == "" {
-		return "", fmt.Errorf("no projects folder configured")
+	if err := requireConfig(cfg, "projects_folder"); err != nil {
+		return "", err
 	}
 
 	cwd, err := os.Getwd()

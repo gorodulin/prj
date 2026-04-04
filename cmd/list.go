@@ -21,7 +21,7 @@ var listCmd = &cobra.Command{
 func init() {
 	rootCmd.AddCommand(listCmd)
 	listCmd.Flags().BoolP("all", "a", false, "include metadata-only projects (not present locally)")
-	listCmd.Flags().StringP("format", "f", "table", `output format: table, json, jsonl, or Go template (e.g. "{{.ID}}\t{{.Title}}")`)
+	listCmd.Flags().StringP("format", "f", "", `output format: json, jsonl, or Go template (e.g. "{{.ID}}\t{{.Title}}")`)
 	listCmd.Flags().StringP("query", "q", "", "filter by substring (matches ID, title, tags)")
 	listCmd.Flags().StringSlice("tag", nil, "filter by exact tag (repeatable, AND logic)")
 	listCmd.Flags().Bool("missing", false, "show only metadata-only projects (not present locally)")
@@ -37,15 +37,14 @@ func runList(cmd *cobra.Command, args []string) error {
 	showAll, _ := cmd.Flags().GetBool("all")
 	showMissing, _ := cmd.Flags().GetBool("missing")
 
-	// Priority: explicit --format flag > config list_format > default "table".
+	// Priority: explicit --format flag > config list_format > DefaultFormat.
 	formatStr, _ := cmd.Flags().GetString("format")
 	if !cmd.Flags().Changed("format") && cfg.ListFormat != "" {
 		formatStr = cfg.ListFormat
 	}
 
-	if cfg.ProjectsFolder == "" {
-		fmt.Println("No projects folder configured. Set \"projects_folder\" in config.")
-		return nil
+	if err := requireConfig(cfg, "projects_folder"); err != nil {
+		return err
 	}
 
 	ids, err := collectIDs(cfg)

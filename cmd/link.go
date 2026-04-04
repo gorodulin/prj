@@ -36,11 +36,8 @@ func runLink(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("load config: %w", err)
 	}
 
-	if cfg.LinksFolder == "" {
-		return fmt.Errorf("no links folder configured")
-	}
-	if cfg.ProjectsFolder == "" {
-		return fmt.Errorf("no projects folder configured")
+	if err := requireConfig(cfg, "links_folder", "projects_folder"); err != nil {
+		return err
 	}
 
 	dryRun, _ := cmd.Flags().GetBool("dry-run")

@@ -272,6 +272,18 @@ Invalid ID format always errors regardless of `--strict`.
 
 ## Config
 
+### `prj config`
+
+View and modify configuration from the command line.
+
+```bash
+prj config set projects_folder /path/to/projects
+prj config set metadata_folder /path/to/metadata
+prj config get projects_folder       # print a single value
+prj config list                      # show all keys and values
+prj config path                      # print config file location
+```
+
 Config file location (auto-detected per platform):
 - macOS: `~/Library/Application Support/prj/config.json`
 - Linux/BSD: `~/.config/prj/config.json`
@@ -298,8 +310,7 @@ enable additional features.
 | Field | Description |
 |---|---|
 | `projects_folder` | **(required)** Root directory containing project folders |
-| `metadata_folder` | Root directory for project metadata (titles, tags, edit history) |
-| `metadata_folder_suffix` | Suffix appended to project ID to form metadata directory names (default: `_meta`) |
+| `metadata_folder` | Root directory for project metadata (titles, tags, edit history). Metadata directories are named `<project-id>_meta` |
 | `project_id_type` | ID format for new projects: `ULID` (default), `UUIDv7`, `KSUID`, `aYYYYMMDDb`. See [Choosing a project ID format](#choosing-a-project-id-format) |
 | `machine_name` | Human-readable name for this machine (recorded in metadata) |
 | `machine_id` | Machine identifier (recorded in metadata) |
