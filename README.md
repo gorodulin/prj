@@ -33,9 +33,9 @@ make install
 
 ## Quick start
 
-1. Create a config file (see [Config](#config) for the path on your platform):
-   ```json
-   { "projects_folder": "/path/to/your/projects" }
+1. Configure the projects folder:
+   ```bash
+   prj config set projects_folder /path/to/your/projects
    ```
 
 2. Create your first project:
@@ -43,8 +43,15 @@ make install
    prj new --title "My Project"
    ```
 
-That's the minimum setup. Add `metadata_folder` to track titles and tags,
-or `links_folder` to organize projects by topic. See below.
+That's the minimum setup. To track titles and tags, configure metadata:
+
+```bash
+prj config set metadata_folder /path/to/metadata
+prj config set machine_name "my-laptop"
+prj config set machine_id "$(uuidgen)"
+```
+
+Add `links_folder` to organize projects by topic. See below.
 
 ## Commands
 
@@ -73,10 +80,10 @@ prj list -f jsonl           # one JSON object per line
 prj list -f '{{.ID}}'      # custom Go template
 ```
 
-Default output (tab-separated, one project per line):
+Default output (one project per line, colorized on TTY):
 ```
-p20260401a	ZFS folder to dataset conversion	automation,zfs
-p20260402a	prj (Golang)	cli,golang
+01J5B3GR41... + 26-04-02 prj (Golang) cli, golang
+01J5B3H2K8... + 26-04-01 ZFS conversion automation, zfs
 ```
 
 JSON output includes all fields (`id`, `title`, `path`, `tags`):
@@ -324,8 +331,8 @@ enable additional features.
 ## Metadata
 
 The metadata folder stores project titles, tags, and their edit history.
-It is separate from the projects folder — configure it via `metadata_folder`
-in `config.json`.
+It is separate from the projects folder — configure it via
+`prj config set metadata_folder /path/to/metadata`.
 
 With metadata configured, you can:
 - See titles and tags in `prj list` output
