@@ -1,0 +1,9 @@
+# Exclude from release tarballs (git archive / GitHub source downloads)
+*_test.go       export-ignore
+.lore.json      export-ignore
+cmd/.lore.json  export-ignore
+internal/**/.lore.json export-ignore
+packaging/      export-ignore
+scripts/        export-ignore
+CHANGELOG.md    export-ignore
+.gitattributes  export-ignore
