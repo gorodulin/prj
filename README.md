@@ -11,6 +11,10 @@ brew tap gorodulin/tap
 brew install prj
 ```
 
+Shell completions for bash, zsh, and fish are installed automatically.
+Try `prj lis<Tab>` to verify. If autocompletion doesn't work, see
+[Homebrew Shell Completion](https://docs.brew.sh/Shell-Completion).
+
 ### From source
 
 Requires Go 1.19+:
