@@ -1,0 +1,19 @@
+{
+  "8R4Xau6z3j": {
+    "fact": "Missing metadata directory is not an error — ReadSnapshots returns (nil, nil) for nonexistent dirs. Most projects have no metadata. Same pattern as config.Load returning zero-value for missing config file.",
+    "incl": ["g:*.go", "r:ReadSnapshots|ErrNotExist"],
+    "tags": ["area:metadata", "kind:convention"]
+  },
+  "Cnfghh937T": {
+    "fact": "If you changed metadata behavior (snapshots, heads, retention, sync), update docs/metadata-system.md to reflect the change.",
+    "incl": ["g:**/*.go"],
+    "skip": ["g:**/*_test.go"],
+    "tags": ["hook:edit", "hook:write", "kind:convention"]
+  },
+  "ajYx3iIrOf": {
+    "fact": "The metadata system is documented in docs/metadata-system.md — read it for context on snapshot format, sync safety, retention, and design decisions.",
+    "incl": ["g:**/*.go", "r:(?i)metadata"],
+    "skip": ["g:**/*_test.go"],
+    "tags": ["hook:read", "kind:reference"]
+  }
+}

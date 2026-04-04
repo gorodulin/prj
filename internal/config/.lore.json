@@ -1,0 +1,7 @@
+{
+  "PX4YQClgXq": {
+    "fact": "Config path via os.UserConfigDir() — never hardcode ~/.config or ~/Library/... The stdlib function handles all platforms (macOS: ~/Library/Application Support, Linux: $XDG_CONFIG_HOME, Windows: %AppData%).",
+    "incl": ["g:*.go"],
+    "tags": ["area:config", "kind:convention"]
+  }
+}

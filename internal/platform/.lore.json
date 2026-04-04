@@ -1,0 +1,13 @@
+{
+  "10Ze9PEvRh": {
+    "fact": "Platform files must cover all targets — every function in a platform_*.go must have implementations for darwin, linux, freebsd, windows. Missing one = compile failure on that OS. Treat as a checklist.",
+    "incl": ["g:platform_*.go"],
+    "skip": ["g:platform.go", "g:platform_test.go"],
+    "tags": ["area:platform", "kind:convention"]
+  },
+  "WXkBSXvF8g": {
+    "fact": "Use //go:build (modern syntax, Go 1.17+), not // +build. One constraint per file, first line before package declaration.",
+    "incl": ["g:platform_*.go"],
+    "tags": ["area:platform", "kind:convention"]
+  }
+}

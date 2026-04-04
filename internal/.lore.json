@@ -1,0 +1,32 @@
+{
+  "4pqW9AF8nU": {
+    "fact": "Sentinel errors for expected failures — define var ErrX = errors.New(\"...\") at package level for conditions callers need to check. Use errors.Is() to match.",
+    "incl": ["g:**/*.go", "r:var Err"],
+    "tags": ["area:errors", "kind:convention"]
+  },
+  "5nfi7kUdb2": {
+    "fact": "Stutter is OK for the primary type (config.Config, project.Project — matches Go stdlib like http.Client). Avoid stutter on secondary types: config.PathResolver not config.ConfigPathResolver.",
+    "incl": ["g:**/*.go", "r:^type "],
+    "tags": ["area:naming", "kind:convention"]
+  },
+  "lcY0WNmcZ8": {
+    "fact": "Package names: single lowercase word, no underscores or mixedCase. Function names should be descriptive — the package qualifier carries domain context (e.g. project.CollectIDsFromFolder not project.ProjectCollectIDs).",
+    "incl": ["g:**/*.go", "r:^package "],
+    "tags": ["area:naming", "kind:convention"]
+  },
+  "sYNFGi5OHT": {
+    "fact": "internal/ is for project-private packages — all non-command logic goes here. The Go compiler prevents imports from outside the parent tree.",
+    "incl": ["g:**/*.go"],
+    "tags": ["area:structure", "kind:convention"]
+  },
+  "vBd7xRH3Tq": {
+    "fact": "One concern per package — each internal/ package owns one domain (config, platform, project, etc.). Don't create grab-bag util or helpers packages.",
+    "incl": ["g:*"],
+    "tags": ["area:structure", "kind:convention"]
+  },
+  "wcIXBkFIUJ": {
+    "fact": "Avoid init() in internal/ packages — init() with side effects (I/O, global state mutation) creates hidden coupling and test pain. Stateless init is acceptable. Pass dependencies explicitly.",
+    "incl": ["g:**/*.go", "r:func init\\("],
+    "tags": ["area:structure", "kind:convention"]
+  }
+}

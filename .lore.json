@@ -1,0 +1,59 @@
+{
+  "3RLAxZniRh": {
+    "fact": "Project discovery unions project folders AND metadata folders. Metadata-only projects (no local project folder) are valid — they represent projects synced to other machines but listable here via metadata. Don't assume every project ID has a local folder.",
+    "incl": ["g:cmd/list.go", "g:internal/project/collect.go"],
+    "tags": ["area:architecture", "kind:convention"]
+  },
+  "58cjVvHYjQ": {
+    "fact": "Use Makefile targets for building, testing, and linting — run `make help` to list them. Prefer `make check` over direct go commands.",
+    "incl": ["g:**/*.go", "g:Makefile"],
+    "tags": ["kind:workflow"]
+  },
+  "71h465tvAq": {
+    "fact": "Cross-compile with CGO_ENABLED=0 for pure-Go portability. Known future exception: macOS Finder alias resolution may need cgo — isolate behind a build tag and document.",
+    "incl": ["g:**/*.go", "g:Makefile"],
+    "tags": ["area:build", "kind:convention"]
+  },
+  "DMipekjx9c": {
+    "fact": "Test package: use same package to test unexported logic, _test suffix (e.g. package config_test) for black-box API tests. Don't mix both in one file.",
+    "incl": ["g:**/*_test.go", "r:^package "],
+    "tags": ["area:testing", "kind:convention"]
+  },
+  "IfXmAroTmH": {
+    "fact": "Tests live next to the code — foo_test.go beside foo.go, same directory. No separate test/ tree.",
+    "incl": ["g:**/*_test.go"],
+    "tags": ["area:testing", "kind:convention"]
+  },
+  "Iuy8mV6wH9": {
+    "fact": "Table-driven tests by default — define cases as []struct{...}, iterate with t.Run(name, ...). One test function per behavior, multiple cases per function.",
+    "incl": ["g:**/*_test.go", "r:func Test"],
+    "tags": ["area:testing", "kind:convention"]
+  },
+  "ZcWGKco0qB": {
+    "fact": "Wrap errors with context using %w — fmt.Errorf(\"load config: %w\", err). Always add context about what was being attempted. Preserve the chain for errors.Is/errors.As.",
+    "incl": ["g:**/*.go", "r:fmt\\.Errorf|errors\\.New"],
+    "skip": ["g:**/*_test.go"],
+    "tags": ["area:errors", "kind:convention"]
+  },
+  "dq3FcJnQej": {
+    "fact": "Use build-tagged files for platform branching, not runtime.GOOS switches scattered in shared code.",
+    "incl": ["g:**/*.go", "r:runtime\\.GOOS"],
+    "tags": ["area:platform", "kind:convention"]
+  },
+  "oQIpEweiUe": {
+    "fact": "main.go is only a trampoline — func main() calls cmd.Execute() and nothing else. No logic, no imports beyond cmd.",
+    "incl": ["g:main.go"],
+    "tags": ["area:structure", "kind:convention"]
+  },
+  "sximTmkr6a": {
+    "fact": "Version injected via ldflags: go build -ldflags \"-X github.com/gorodulin/prj/cmd.version=$(VERSION)\". Version from git describe --tags --always --dirty. Never hardcode a version string.",
+    "incl": ["g:Makefile", "g:cmd/root.go"],
+    "tags": ["area:build", "kind:convention"]
+  },
+  "y3WrOlTDSF": {
+    "fact": "Reminder: this codebase distinguishes \"project folder\" (a folder matching a project ID format inside projects_folder root) from generic folders. If you see \"folder\" or \"directory\" in code that specifically deals with project folders, consider whether the naming should reflect that distinction.",
+    "incl": ["g:**/*.go", "r:(?<![Pp]roject |[Pp]rojects)[Ff]older"],
+    "skip": ["g:**/*_test.go", "g:Makefile"],
+    "tags": ["kind:terminology"]
+  }
+}

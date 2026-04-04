@@ -1,0 +1,210 @@
+package config
+
+import (
+	"encoding/json"
+	"errors"
+	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
+
+	"github.com/gorodulin/prj/internal/project"
+)
+
+const appName = "prj"
+const configFileName = "config.json"
+
+// Link kind constants.
+const (
+	LinkKindSymlink     = "symlink"
+	LinkKindFinderAlias = "finder-alias"
+)
+
+// Default values for optional config fields.
+const (
+	DefaultMetadataSuffix  = "_meta"
+	DefaultLinkTitleFormat = "{{.Title}}"
+	DefaultProjectIDType   = "ULID"
+)
+
+// ValidLinkKinds lists recognized values for LinkKind.
+var ValidLinkKinds = []string{LinkKindSymlink, LinkKindFinderAlias}
+
+// ValidProjectIDTypes lists recognized values for ProjectIDType.
+var ValidProjectIDTypes = []string{project.FormatAYMDb, project.FormatUUIDv7, project.FormatULID, project.FormatKSUID}
+
+// Config holds the prj configuration persisted as JSON.
+type Config struct {
+	ProjectsFolder  string `json:"projects_folder"`
+	MetadataFolder  string `json:"metadata_folder,omitempty"`
+	MetadataSuffix  string `json:"metadata_folder_suffix,omitempty"`
+	LinksFolder     string `json:"links_folder,omitempty"`
+	LinkTitleFormat string `json:"link_title_format,omitempty"`
+	ListFormat      string `json:"list_format,omitempty"`
+	LinkKind          string `json:"link_kind,omitempty"`
+	LinkSinkName      string `json:"link_sink_name,omitempty"`
+	LinkCommentFormat string `json:"link_comment_format,omitempty"`
+	ProjectIDType   string `json:"project_id_type,omitempty"`
+	MachineName     string `json:"machine_name,omitempty"`
+	MachineID       string `json:"machine_id,omitempty"`
+	RetentionDays   int    `json:"retention_days,omitempty"`
+}
+
+// DefaultPath returns the platform-appropriate config file path.
+func DefaultPath() (string, error) {
+	dir, err := os.UserConfigDir()
+	if err != nil {
+		return "", fmt.Errorf("resolve config dir: %w", err)
+	}
+	return filepath.Join(dir, appName, configFileName), nil
+}
+
+// Load reads config from the given path. If path is empty, uses DefaultPath
+// and tolerates the file not existing (first-run). If path is explicitly
+// provided, the file must exist.
+func Load(path string) (Config, error) {
+	explicit := path != ""
+	if !explicit {
+		var err error
+		path, err = DefaultPath()
+		if err != nil {
+			return Config{}, err
+		}
+	}
+
+	data, err := os.ReadFile(path)
+	if err != nil {
+		if !explicit && errors.Is(err, os.ErrNotExist) {
+			return Config{}, nil
+		}
+		return Config{}, fmt.Errorf("read config %s: %w", path, err)
+	}
+
+	var cfg Config
+	if err := json.Unmarshal(data, &cfg); err != nil {
+		return Config{}, fmt.Errorf("parse config %s: %w", path, err)
+	}
+
+	// Default metadata suffix when metadata folder is configured.
+	if cfg.MetadataFolder != "" && cfg.MetadataSuffix == "" {
+		cfg.MetadataSuffix = DefaultMetadataSuffix
+	}
+
+	// Default project ID type.
+	if cfg.ProjectIDType == "" {
+		cfg.ProjectIDType = DefaultProjectIDType
+	}
+
+	if err := cfg.validate(); err != nil {
+		return Config{}, fmt.Errorf("invalid config: %w", err)
+	}
+
+	return cfg, nil
+}
+
+// validate checks config field values for obvious errors.
+// It validates enums, path absoluteness, and dangerous path overlaps.
+// It does NOT check whether fields are present — that's command-specific.
+func (c Config) validate() error {
+	// Enum: link_kind
+	if c.LinkKind != "" && !containsStr(ValidLinkKinds, c.LinkKind) {
+		return fmt.Errorf("link_kind %q is not recognized (use %s)", c.LinkKind, JoinQuoted(ValidLinkKinds))
+	}
+
+	// Enum: project_id_type
+	if c.ProjectIDType != "" && !containsStr(ValidProjectIDTypes, c.ProjectIDType) {
+		return fmt.Errorf("project_id_type %q is not recognized (use %s)", c.ProjectIDType, JoinQuoted(ValidProjectIDTypes))
+	}
+
+	// Paths must be absolute if set.
+	for _, pf := range []struct{ name, value string }{
+		{"projects_folder", c.ProjectsFolder},
+		{"metadata_folder", c.MetadataFolder},
+		{"links_folder", c.LinksFolder},
+	} {
+		if pf.value != "" && !filepath.IsAbs(pf.value) {
+			return fmt.Errorf("%s must be an absolute path (got %q)", pf.name, pf.value)
+		}
+	}
+
+	// Dangerous overlaps (only when both paths are set).
+	if c.LinksFolder != "" && c.ProjectsFolder != "" {
+		if c.LinksFolder == c.ProjectsFolder {
+			return fmt.Errorf("links_folder and projects_folder must not be the same path")
+		}
+		if isInsideDir(c.ProjectsFolder, c.LinksFolder) {
+			return fmt.Errorf("projects_folder must not be inside links_folder (project folders would be scanned as link tree)")
+		}
+	}
+	if c.LinksFolder != "" && c.MetadataFolder != "" {
+		if c.LinksFolder == c.MetadataFolder {
+			return fmt.Errorf("links_folder and metadata_folder must not be the same path")
+		}
+	}
+
+	return nil
+}
+
+// MetadataDir returns the metadata directory path for a project ID.
+func (c Config) MetadataDir(id string) string {
+	return filepath.Join(c.MetadataFolder, id+c.MetadataSuffix)
+}
+
+// IsValidLinkKind reports whether kind is a recognized link type.
+func IsValidLinkKind(kind string) bool {
+	return containsStr(ValidLinkKinds, kind)
+}
+
+func containsStr(list []string, s string) bool {
+	for _, v := range list {
+		if v == s {
+			return true
+		}
+	}
+	return false
+}
+
+func JoinQuoted(list []string) string {
+	parts := make([]string, len(list))
+	for i, v := range list {
+		parts[i] = "\"" + v + "\""
+	}
+	return strings.Join(parts, ", ")
+}
+
+// isInsideDir reports whether child is a subdirectory of parent.
+func isInsideDir(child, parent string) bool {
+	rel, err := filepath.Rel(parent, child)
+	if err != nil {
+		return false
+	}
+	return rel != "." && !strings.HasPrefix(rel, "..")
+}
+
+// Save writes config to the given path. If path is empty, uses DefaultPath.
+// Creates the parent directory if it does not exist.
+func Save(cfg Config, path string) error {
+	if path == "" {
+		var err error
+		path, err = DefaultPath()
+		if err != nil {
+			return err
+		}
+	}
+
+	dir := filepath.Dir(path)
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		return fmt.Errorf("create config dir %s: %w", dir, err)
+	}
+
+	data, err := json.MarshalIndent(cfg, "", "  ")
+	if err != nil {
+		return fmt.Errorf("marshal config: %w", err)
+	}
+
+	if err := os.WriteFile(path, data, 0644); err != nil {
+		return fmt.Errorf("write config %s: %w", path, err)
+	}
+
+	return nil
+}

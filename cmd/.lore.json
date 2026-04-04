@@ -1,0 +1,19 @@
+{
+  "0DcSbN1MFQ": {
+    "fact": "One command per file in cmd/. Each cobra subcommand lives in its own file named after the command. Commands register themselves via init() { rootCmd.AddCommand(...) } — no central registry.",
+    "incl": ["g:*.go"],
+    "skip": ["g:root.go"],
+    "tags": ["area:structure", "kind:convention"]
+  },
+  "IbXqJaL5p9": {
+    "fact": "Title resolution (metadata → README → empty) is orchestrated in cmd/, not in internal/ packages. Each command has its own resolution logic — list uses latest-head-wins, future commands (edit, info) will differ. Don't move this orchestration into the project or metadata package.",
+    "incl": ["g:*.go", "r:Title|ReadmeTitle|LatestHead"],
+    "tags": ["area:architecture", "kind:convention"]
+  },
+  "bav5ZyElSL": {
+    "fact": "Adding/removing commands or flags? Update README.md and docs/link-system.md (for link flags).",
+    "incl": ["g:*.go"],
+    "skip": ["g:*_test.go"],
+    "tags": ["kind:convention"]
+  }
+}
