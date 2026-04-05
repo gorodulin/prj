@@ -14,8 +14,8 @@ var cfgFile string
 
 var rootCmd = &cobra.Command{
 	Use:   "prj",
-	Short: "Project folder manager",
-	Long:  "prj manages project folders, their metadata, and cross-platform links.",
+	Short: "Projector — manage project folders, metadata, and links",
+	Long:  "Projector (prj) manages project folders, their metadata, and cross-platform links.",
 }
 
 func Execute() {

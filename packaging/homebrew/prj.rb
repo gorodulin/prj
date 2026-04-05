@@ -1,5 +1,5 @@
 class Prj < Formula
-  desc "CLI tool for managing project folders, metadata, and links"
+  desc "Projector: project folder, metadata, and link manager"
   homepage "https://github.com/gorodulin/prj"
   url "https://github.com/gorodulin/prj/archive/refs/tags/v0.3.0.tar.gz"
   sha256 "fd60322a643dedfc2365045218958c84ee76ce548d3c6aea8ae3ba3e2393ca52"

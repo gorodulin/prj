@@ -1,6 +1,6 @@
-# prj
+# Projector (prj)
 
-Cross-platform CLI tool for managing project folders, their metadata, and links.
+Projector is a cross-platform CLI tool for managing project folders, their metadata, and links.
 
 ## Install
 
@@ -248,7 +248,7 @@ Output shows what changed:
 2 created, 1 removed, 1 replaced
 ```
 
-Only links created by `prj` are touched. Regular files and directories
+Only links created by Projector are touched. Regular files and directories
 in the link tree are never modified.
 
 See [docs/link-system.md](docs/link-system.md) for the full design.
@@ -343,7 +343,7 @@ With metadata configured, you can:
 
 ### Syncing across machines
 
-`prj` does not sync files itself. Use a file sync tool (Resilio Sync,
+Projector does not sync files itself. Use a file sync tool (Resilio Sync,
 Syncthing, etc.) to sync `projects_folder` and `metadata_folder` across
 machines. Metadata folders from different machines can be merged freely —
 just combine their contents into one folder.
