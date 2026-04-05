@@ -14,6 +14,7 @@ func TestProjectIDFromPath(t *testing.T) {
 		name     string
 		cwd      string
 		idFormat string
+		idPrefix string
 		wantID   string
 		wantErr  bool
 	}{
@@ -43,15 +44,24 @@ func TestProjectIDFromPath(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name:     "valid ID format passes",
+			name:     "valid ID format and prefix passes",
 			cwd:      filepath.Join(projects, "p20260402a"),
 			idFormat: "aYYYYMMDDb",
+			idPrefix: "p",
 			wantID:   "p20260402a",
 		},
 		{
 			name:     "invalid ID format rejects",
 			cwd:      filepath.Join(projects, "not-a-project"),
 			idFormat: "aYYYYMMDDb",
+			idPrefix: "p",
+			wantErr:  true,
+		},
+		{
+			name:     "wrong prefix rejects",
+			cwd:      filepath.Join(projects, "prj20260402a"),
+			idFormat: "aYYYYMMDDb",
+			idPrefix: "p",
 			wantErr:  true,
 		},
 		{
@@ -63,7 +73,7 @@ func TestProjectIDFromPath(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			id, err := projectIDFromPath(tt.cwd, projects, tt.idFormat)
+			id, err := projectIDFromPath(tt.cwd, projects, tt.idFormat, tt.idPrefix)
 			if tt.wantErr {
 				if err == nil {
 					t.Errorf("expected error, got id=%q", id)

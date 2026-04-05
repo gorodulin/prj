@@ -37,7 +37,7 @@ func runPath(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	if cfg.ProjectIDType != "" && !project.IsValidID(id, cfg.ProjectIDType) {
+	if cfg.ProjectIDType != "" && !project.IsValidID(id, cfg.ProjectIDType, cfg.ProjectIDPrefix) {
 		return fmt.Errorf("%q is not a valid project ID (expected %s format)", id, cfg.ProjectIDType)
 	}
 

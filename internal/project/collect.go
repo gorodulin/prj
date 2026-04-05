@@ -14,7 +14,7 @@ import (
 //
 // If idFormat is empty, all non-hidden directories are included (after suffix
 // stripping if applicable).
-func CollectIDsFromFolder(folder, idFormat, suffix string) ([]string, error) {
+func CollectIDsFromFolder(folder, idFormat, prefix, suffix string) ([]string, error) {
 	entries, err := os.ReadDir(folder)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -41,7 +41,7 @@ func CollectIDsFromFolder(folder, idFormat, suffix string) ([]string, error) {
 			id = name[:len(name)-len(suffix)]
 		}
 
-		if idFormat != "" && !IsValidID(id, idFormat) {
+		if idFormat != "" && !IsValidID(id, idFormat, prefix) {
 			continue
 		}
 

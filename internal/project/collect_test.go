@@ -15,7 +15,7 @@ func TestCollectIDsFromFolder(t *testing.T) {
 	os.Mkdir(filepath.Join(dir, ".hidden"), 0755)
 	os.WriteFile(filepath.Join(dir, "notes.txt"), []byte("hello"), 0644)
 
-	ids, err := CollectIDsFromFolder(dir, FormatAYMDb, "")
+	ids, err := CollectIDsFromFolder(dir, FormatAYMDb, "p", "")
 	if err != nil {
 		t.Fatalf("CollectIDsFromFolder: %v", err)
 	}
@@ -32,7 +32,7 @@ func TestCollectIDsFromFolderWithSuffix(t *testing.T) {
 	os.Mkdir(filepath.Join(dir, "p20250103c"), 0755) // no suffix, skipped
 	os.Mkdir(filepath.Join(dir, "random_meta"), 0755) // suffix but invalid ID
 
-	ids, err := CollectIDsFromFolder(dir, FormatAYMDb, "_meta")
+	ids, err := CollectIDsFromFolder(dir, FormatAYMDb, "p", "_meta")
 	if err != nil {
 		t.Fatalf("CollectIDsFromFolder: %v", err)
 	}
@@ -50,7 +50,7 @@ func TestCollectIDsFromFolderNoFormat(t *testing.T) {
 	os.Mkdir(filepath.Join(dir, "p20250101a"), 0755)
 	os.Mkdir(filepath.Join(dir, "metadata"), 0755)
 
-	ids, err := CollectIDsFromFolder(dir, "", "")
+	ids, err := CollectIDsFromFolder(dir, "", "", "")
 	if err != nil {
 		t.Fatalf("CollectIDsFromFolder: %v", err)
 	}
@@ -60,12 +60,30 @@ func TestCollectIDsFromFolderNoFormat(t *testing.T) {
 }
 
 func TestCollectIDsFromFolderMissingDir(t *testing.T) {
-	ids, err := CollectIDsFromFolder(filepath.Join(t.TempDir(), "nonexistent"), "", "")
+	ids, err := CollectIDsFromFolder(filepath.Join(t.TempDir(), "nonexistent"), "", "", "")
 	if err != nil {
 		t.Fatalf("expected nil error for missing dir, got: %v", err)
 	}
 	if ids != nil {
 		t.Errorf("expected nil ids, got %v", ids)
+	}
+}
+
+func TestCollectIDsFromFolderPrefixFilter(t *testing.T) {
+	dir := t.TempDir()
+
+	os.Mkdir(filepath.Join(dir, "p20250101a"), 0755)
+	os.Mkdir(filepath.Join(dir, "prj20250101a"), 0755)
+
+	ids, err := CollectIDsFromFolder(dir, FormatAYMDb, "p", "")
+	if err != nil {
+		t.Fatalf("CollectIDsFromFolder: %v", err)
+	}
+	if len(ids) != 1 {
+		t.Fatalf("expected 1 ID with prefix 'p', got %d: %v", len(ids), ids)
+	}
+	if ids[0] != "p20250101a" {
+		t.Errorf("got %q, want %q", ids[0], "p20250101a")
 	}
 }
 

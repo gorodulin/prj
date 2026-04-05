@@ -156,13 +156,13 @@ func runLink(cmd *cobra.Command, args []string) error {
 	}
 
 	// 5. Scan actual state.
-	actual, err := linktree.ScanManagedLinks(cfg.LinksFolder, cfg.ProjectsFolder, cfg.ProjectIDType, filterID)
+	actual, err := linktree.ScanManagedLinks(cfg.LinksFolder, cfg.ProjectsFolder, cfg.ProjectIDType, cfg.ProjectIDPrefix, filterID)
 	if err != nil {
 		return fmt.Errorf("scan links: %w", err)
 	}
 
 	// 6. Reconcile.
-	actions := linktree.Reconcile(desired, actual, linkKind)
+	actions := linktree.Reconcile(desired, actual, linkKind, cfg.ProjectsFolder)
 
 	// 7. Print and apply.
 	counts := printActions(actions, cfg.LinksFolder, verbose)

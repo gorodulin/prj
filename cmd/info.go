@@ -42,7 +42,7 @@ func runInfo(cmd *cobra.Command, args []string) error {
 		return infoError(jsonOut, err)
 	}
 
-	if cfg.ProjectIDType != "" && !project.IsValidID(id, cfg.ProjectIDType) {
+	if cfg.ProjectIDType != "" && !project.IsValidID(id, cfg.ProjectIDType, cfg.ProjectIDPrefix) {
 		return infoError(jsonOut, fmt.Errorf("%q is not a valid project ID (expected %s format)", id, cfg.ProjectIDType))
 	}
 

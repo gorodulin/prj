@@ -35,6 +35,39 @@ func TestParseIDTime(t *testing.T) {
 			},
 		},
 		{
+			name:   "aYYYYMMDDb three-letter prefix",
+			id:     "prj20260101b",
+			wantOK: true,
+			check: func(t *testing.T, got time.Time) {
+				want := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+				if !got.Equal(want) {
+					t.Errorf("got %v, want %v", got, want)
+				}
+			},
+		},
+		{
+			name:   "aYYYYMMDDb prefix with dash separator",
+			id:     "prj-20260101b",
+			wantOK: true,
+			check: func(t *testing.T, got time.Time) {
+				want := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+				if !got.Equal(want) {
+					t.Errorf("got %v, want %v", got, want)
+				}
+			},
+		},
+		{
+			name:   "aYYYYMMDDb prefix with underscore separator",
+			id:     "prj_20260101b",
+			wantOK: true,
+			check: func(t *testing.T, got time.Time) {
+				want := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+				if !got.Equal(want) {
+					t.Errorf("got %v, want %v", got, want)
+				}
+			},
+		},
+		{
 			name:   "ULID round-trip",
 			id:     "", // filled in init
 			wantOK: true,
@@ -86,19 +119,19 @@ func TestParseIDTime(t *testing.T) {
 	if err != nil {
 		t.Fatalf("generate ULID: %v", err)
 	}
-	tests[2].id = ulid
+	tests[5].id = ulid
 
 	uuid, err := generateUUIDv7()
 	if err != nil {
 		t.Fatalf("generate UUIDv7: %v", err)
 	}
-	tests[3].id = uuid
+	tests[6].id = uuid
 
 	ksuid, err := generateKSUID()
 	if err != nil {
 		t.Fatalf("generate KSUID: %v", err)
 	}
-	tests[4].id = ksuid
+	tests[7].id = ksuid
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

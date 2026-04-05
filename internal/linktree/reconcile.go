@@ -8,6 +8,7 @@ import (
 
 	"github.com/gorodulin/prj/internal/config"
 	"github.com/gorodulin/prj/internal/platform"
+	"github.com/gorodulin/prj/internal/project"
 )
 
 // ActionKind describes what reconciliation decided for a link path.
@@ -40,7 +41,9 @@ type DesiredLink struct {
 // Reconcile computes actions to sync desired state against actual.
 // desired maps full link path → DesiredLink.
 // linkKind is "symlink" or "finder-alias".
-func Reconcile(desired map[string]DesiredLink, actual []ManagedLink, linkKind string) []Action {
+// projectsFolder is used to detect foreign project links for automatic
+// conflict resolution. Pass "" to disable this behavior.
+func Reconcile(desired map[string]DesiredLink, actual []ManagedLink, linkKind, projectsFolder string) []Action {
 	actualByPath := make(map[string]ManagedLink, len(actual))
 	// Index by (folder, projectID) to handle Unicode normalization differences
 	// between Go strings (NFC) and macOS filenames (NFD).
@@ -75,7 +78,19 @@ func Reconcile(desired map[string]DesiredLink, actual []ManagedLink, linkKind st
 			}
 		}
 		if !exists {
-			// Nothing at this path — but check for non-link blockers.
+			// Check if blocker is a foreign project link we can work around.
+			if altPath, ok := retryWithIDSuffix(desiredPath, dl, projectsFolder); ok {
+				if checkBlocker(altPath) == "" {
+					actions = append(actions, Action{
+						Kind:   ActionCreate,
+						Path:   altPath,
+						Target: dl.Target,
+						ID:     dl.ID,
+					})
+					continue
+				}
+			}
+			// Nothing at this path, or non-project blocker.
 			if blocker := checkBlocker(desiredPath); blocker != "" {
 				actions = append(actions, Action{
 					Kind:   ActionConflict,
@@ -156,6 +171,29 @@ func Reconcile(desired map[string]DesiredLink, actual []ManagedLink, linkKind st
 	}
 
 	return actions
+}
+
+// retryWithIDSuffix checks whether desiredPath is blocked by a foreign
+// project link (a symlink/alias pointing into projectsFolder whose target
+// basename is a recognized project ID). If so, it returns an alternative
+// path with " (<ID>)" appended. Returns ("", false) if the blocker is not
+// a foreign project link or projectsFolder is empty.
+func retryWithIDSuffix(desiredPath string, dl DesiredLink, projectsFolder string) (string, bool) {
+	if projectsFolder == "" {
+		return "", false
+	}
+	target, _, ok := resolveTarget(desiredPath)
+	if !ok {
+		return "", false
+	}
+	// Reuse extractProjectID with empty format to check "direct child of projectsFolder".
+	rel, ok := extractProjectID(target, projectsFolder, "", "")
+	if !ok || !project.IsAnyValidID(rel) {
+		return "", false
+	}
+	dir := filepath.Dir(desiredPath)
+	base := filepath.Base(desiredPath)
+	return filepath.Join(dir, base+" ("+dl.ID+")"), true
 }
 
 // checkBlocker returns a description if something non-link blocks a path,

@@ -67,6 +67,12 @@ var Fields = []Field{
 		Set: func(c *Config, v string) error { c.ProjectIDType = v; return nil },
 	},
 	{
+		// Keep Default in sync with config.DefaultProjectIDPrefix.
+		Key: "project_id_prefix", Hint: "prj", Default: "prj",
+		Get: func(c *Config) string { return c.ProjectIDPrefix },
+		Set: func(c *Config, v string) error { c.ProjectIDPrefix = v; return nil },
+	},
+	{
 		Key: "machine_name", Hint: "my-machine",
 		Get: func(c *Config) string { return c.MachineName },
 		Set: func(c *Config, v string) error { c.MachineName = v; return nil },

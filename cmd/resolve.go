@@ -23,12 +23,12 @@ func resolveCurrentProjectID(cfg config.Config) (string, error) {
 		return "", fmt.Errorf("get working directory: %w", err)
 	}
 
-	return projectIDFromPath(cwd, cfg.ProjectsFolder, cfg.ProjectIDType)
+	return projectIDFromPath(cwd, cfg.ProjectsFolder, cfg.ProjectIDType, cfg.ProjectIDPrefix)
 }
 
 // projectIDFromPath extracts a valid project ID from cwd relative to
 // projectsFolder. Returns an error if cwd is not inside a project folder.
-func projectIDFromPath(cwd, projectsFolder, idFormat string) (string, error) {
+func projectIDFromPath(cwd, projectsFolder, idFormat, idPrefix string) (string, error) {
 	rel, err := filepath.Rel(projectsFolder, cwd)
 	if err != nil {
 		return "", fmt.Errorf("not inside a project folder (cwd is %s)", cwd)
@@ -42,7 +42,7 @@ func projectIDFromPath(cwd, projectsFolder, idFormat string) (string, error) {
 	// First path component is the project ID.
 	id := strings.SplitN(rel, string(filepath.Separator), 2)[0]
 
-	if idFormat != "" && !project.IsValidID(id, idFormat) {
+	if idFormat != "" && !project.IsValidID(id, idFormat, idPrefix) {
 		return "", fmt.Errorf("not inside a project folder (cwd is %s)", cwd)
 	}
 

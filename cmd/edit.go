@@ -45,7 +45,7 @@ func runEdit(cmd *cobra.Command, args []string) error {
 	}
 
 	// Validate ID format if configured.
-	if cfg.ProjectIDType != "" && !project.IsValidID(id, cfg.ProjectIDType) {
+	if cfg.ProjectIDType != "" && !project.IsValidID(id, cfg.ProjectIDType, cfg.ProjectIDPrefix) {
 		return fmt.Errorf("invalid project ID %q for format %s", id, cfg.ProjectIDType)
 	}
 

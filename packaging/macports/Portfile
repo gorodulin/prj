@@ -3,7 +3,7 @@
 PortSystem          1.0
 PortGroup           golang 1.0
 
-go.setup            github.com/gorodulin/prj 0.1.0 v
+go.setup            gorodulin/prj 0.2.0 v
 categories          devel
 license             Apache-2
 maintainers         {gorodulin @gorodulin}
@@ -12,9 +12,9 @@ long_description    Cross-platform CLI tool for managing project folders, \
                     their metadata, and links. Organizes projects by topic \
                     using a tag-driven link tree.
 
-checksums           rmd160  598d0dcab1dadf92e8ee1fa6782c65dcf7ae7e96 \
-                    sha256  48aa52900d4fe5ac2dacc704aaf2f03f29b324ceb1c713cfbc2b61791c5ec4dd \
-                    size    40756
+checksums           rmd160  41a47cf66d0151c9314ae575f6bfaa2454a25b5e \
+                    sha256  0d1df18fdf059f1f57f28da256c9bd20b39e8fc1f07637adb8d0d02df61a0b7a \
+                    size    43264
 
 build.args-append   -ldflags "-s -w -X github.com/gorodulin/prj/cmd.version=${version}"
 

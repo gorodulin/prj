@@ -22,7 +22,7 @@ type ManagedLink struct {
 // filterID restricts results to links targeting that project (empty = all).
 // Regular files, directories, and links pointing outside projectsFolder
 // are silently ignored.
-func ScanManagedLinks(linksRoot, projectsFolder, idFormat, filterID string) ([]ManagedLink, error) {
+func ScanManagedLinks(linksRoot, projectsFolder, idFormat, idPrefix, filterID string) ([]ManagedLink, error) {
 	var managed []ManagedLink
 
 	err := filepath.WalkDir(linksRoot, func(path string, d os.DirEntry, err error) error {
@@ -43,7 +43,7 @@ func ScanManagedLinks(linksRoot, projectsFolder, idFormat, filterID string) ([]M
 			return nil
 		}
 
-		ml, ok := probeLink(path, projectsFolder, idFormat)
+		ml, ok := probeLink(path, projectsFolder, idFormat, idPrefix)
 		if !ok {
 			return nil
 		}
@@ -62,39 +62,42 @@ func ScanManagedLinks(linksRoot, projectsFolder, idFormat, filterID string) ([]M
 	return managed, nil
 }
 
-// probeLink checks if path is a managed link (symlink or alias pointing
-// into projectsFolder). Returns the ManagedLink and true if managed.
-func probeLink(path, projectsFolder, idFormat string) (ManagedLink, bool) {
-	// Try symlink first (fast).
+// resolveTarget reads the target of a symlink or alias at path.
+// Returns the resolved absolute path, whether it was a symlink, and success.
+// Tries symlink first (fast); falls back to alias/bookmark resolution.
+func resolveTarget(path string) (target string, isSymlink bool, ok bool) {
 	target, err := os.Readlink(path)
 	if err == nil {
-		// Make relative targets absolute.
 		if !filepath.IsAbs(target) {
 			target = filepath.Join(filepath.Dir(path), target)
 		}
-		target = filepath.Clean(target)
-
-		if id, ok := extractProjectID(target, projectsFolder, idFormat); ok {
-			return ManagedLink{Path: path, ProjectID: id, IsSymlink: true}, true
-		}
-		return ManagedLink{}, false
+		return filepath.Clean(target), true, true
 	}
 
-	// Try alias/bookmark resolution.
 	target, err = platform.ResolveAlias(path)
 	if err != nil {
+		return "", false, false
+	}
+	return target, false, true
+}
+
+// probeLink checks if path is a managed link (symlink or alias pointing
+// into projectsFolder). Returns the ManagedLink and true if managed.
+func probeLink(path, projectsFolder, idFormat, idPrefix string) (ManagedLink, bool) {
+	target, isSymlink, ok := resolveTarget(path)
+	if !ok {
 		return ManagedLink{}, false
 	}
-
-	if id, ok := extractProjectID(target, projectsFolder, idFormat); ok {
-		return ManagedLink{Path: path, ProjectID: id, IsSymlink: false}, true
+	id, ok := extractProjectID(target, projectsFolder, idFormat, idPrefix)
+	if !ok {
+		return ManagedLink{}, false
 	}
-	return ManagedLink{}, false
+	return ManagedLink{Path: path, ProjectID: id, IsSymlink: isSymlink}, true
 }
 
 // extractProjectID checks whether target is directly inside projectsFolder
 // and returns the valid project ID if so.
-func extractProjectID(target, projectsFolder, idFormat string) (string, bool) {
+func extractProjectID(target, projectsFolder, idFormat, idPrefix string) (string, bool) {
 	rel, err := filepath.Rel(projectsFolder, target)
 	if err != nil {
 		return "", false
@@ -110,7 +113,7 @@ func extractProjectID(target, projectsFolder, idFormat string) (string, bool) {
 		return "", false
 	}
 
-	if idFormat != "" && !project.IsValidID(rel, idFormat) {
+	if idFormat != "" && !project.IsValidID(rel, idFormat, idPrefix) {
 		return "", false
 	}
 

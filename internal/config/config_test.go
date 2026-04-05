@@ -99,6 +99,42 @@ func TestValidate(t *testing.T) {
 			errMsg:  "link_kind",
 		},
 
+		// project_id_prefix
+		{
+			name: "project_id_prefix empty is ok",
+			cfg:  Config{},
+		},
+		{
+			name: "project_id_prefix single letter is ok",
+			cfg:  Config{ProjectIDPrefix: "p"},
+		},
+		{
+			name: "project_id_prefix three letters is ok",
+			cfg:  Config{ProjectIDPrefix: "prj"},
+		},
+		{
+			name: "project_id_prefix five letters is ok",
+			cfg:  Config{ProjectIDPrefix: "abcde"},
+		},
+		{
+			name:    "project_id_prefix uppercase rejected",
+			cfg:     Config{ProjectIDPrefix: "PRJ"},
+			wantErr: true,
+			errMsg:  "project_id_prefix",
+		},
+		{
+			name:    "project_id_prefix too long rejected",
+			cfg:     Config{ProjectIDPrefix: "abcdef"},
+			wantErr: true,
+			errMsg:  "project_id_prefix",
+		},
+		{
+			name:    "project_id_prefix digits rejected",
+			cfg:     Config{ProjectIDPrefix: "p1"},
+			wantErr: true,
+			errMsg:  "project_id_prefix",
+		},
+
 		// Enum: project_id_type
 		{
 			name: "project_id_type empty is ok",

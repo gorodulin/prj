@@ -12,7 +12,7 @@ func TestReconcile(t *testing.T) {
 			"/links/Work/ProjA":   {Target: "/projects/p20260101a", ID: "p20260101a"},
 			"/links/Code/ProjB":   {Target: "/projects/p20260102b", ID: "p20260102b"},
 		}
-		actions := Reconcile(desired, nil, "symlink")
+		actions := Reconcile(desired, nil, "symlink", "")
 
 		creates := filterActions(actions, ActionCreate)
 		if len(creates) != 2 {
@@ -27,7 +27,7 @@ func TestReconcile(t *testing.T) {
 		actual := []ManagedLink{
 			{Path: "/links/Work/ProjA", ProjectID: "p20260101a", IsSymlink: true},
 		}
-		actions := Reconcile(desired, actual, "symlink")
+		actions := Reconcile(desired, actual, "symlink", "")
 
 		skips := filterActions(actions, ActionSkip)
 		if len(skips) != 1 {
@@ -42,7 +42,7 @@ func TestReconcile(t *testing.T) {
 		actual := []ManagedLink{
 			{Path: "/links/Work/OldProject", ProjectID: "p20260101a", IsSymlink: true},
 		}
-		actions := Reconcile(nil, actual, "symlink")
+		actions := Reconcile(nil, actual, "symlink", "")
 
 		removes := filterActions(actions, ActionRemove)
 		if len(removes) != 1 {
@@ -60,7 +60,7 @@ func TestReconcile(t *testing.T) {
 		actual := []ManagedLink{
 			{Path: "/links/Work/ProjA", ProjectID: "p20260101a", IsSymlink: true},
 		}
-		actions := Reconcile(desired, actual, "symlink")
+		actions := Reconcile(desired, actual, "symlink", "")
 
 		creates := filterActions(actions, ActionCreate)
 		removes := filterActions(actions, ActionRemove)
@@ -79,7 +79,7 @@ func TestReconcile(t *testing.T) {
 		actual := []ManagedLink{
 			{Path: "/links/Work/ProjA", ProjectID: "p20260101a", IsSymlink: false}, // alias
 		}
-		actions := Reconcile(desired, actual, "symlink") // want symlink
+		actions := Reconcile(desired, actual, "symlink", "") // want symlink
 
 		replaces := filterActions(actions, ActionReplace)
 		if len(replaces) != 1 {
@@ -96,7 +96,7 @@ func TestReconcile(t *testing.T) {
 		actual := []ManagedLink{
 			{Path: "/links/Work/ProjA", ProjectID: "p20260101a", IsSymlink: true},
 		}
-		actions := Reconcile(desired, actual, "finder-alias")
+		actions := Reconcile(desired, actual, "finder-alias", "")
 
 		skips := filterActions(actions, ActionSkip)
 		if len(skips) != 1 {
@@ -118,7 +118,7 @@ func TestReconcile(t *testing.T) {
 		actual := []ManagedLink{
 			{Path: "/links/Work/ProjA", ProjectID: "p20260101a", IsSymlink: true},
 		}
-		actions := Reconcile(desired, actual, "finder-alias")
+		actions := Reconcile(desired, actual, "finder-alias", "")
 
 		replaces := filterActions(actions, ActionReplace)
 		if len(replaces) != 1 {
@@ -137,7 +137,7 @@ func TestReconcile(t *testing.T) {
 		desired := map[string]DesiredLink{
 			blocker: {Target: "/projects/p20260101a", ID: "p20260101a"},
 		}
-		actions := Reconcile(desired, nil, "symlink")
+		actions := Reconcile(desired, nil, "symlink", "")
 
 		conflicts := filterActions(actions, ActionConflict)
 		if len(conflicts) != 1 {
@@ -157,7 +157,7 @@ func TestReconcile(t *testing.T) {
 		desired := map[string]DesiredLink{
 			foreign: {Target: "/projects/p20260101a", ID: "p20260101a"},
 		}
-		actions := Reconcile(desired, nil, "symlink")
+		actions := Reconcile(desired, nil, "symlink", "")
 
 		conflicts := filterActions(actions, ActionConflict)
 		if len(conflicts) != 1 {
@@ -178,7 +178,7 @@ func TestReconcile(t *testing.T) {
 			{Path: nfd, ProjectID: "p20260101a", IsSymlink: true},
 		}
 
-		actions := Reconcile(desired, actual, "symlink")
+		actions := Reconcile(desired, actual, "symlink", "")
 
 		skips := filterActions(actions, ActionSkip)
 		if len(skips) != 1 {
@@ -204,7 +204,7 @@ func TestReconcile(t *testing.T) {
 			{Path: nfd, ProjectID: "p20260101a", IsSymlink: true}, // have symlink
 		}
 
-		actions := Reconcile(desired, actual, "finder-alias") // want alias
+		actions := Reconcile(desired, actual, "finder-alias", "") // want alias
 
 		replaces := filterActions(actions, ActionReplace)
 		if len(replaces) != 1 {
@@ -226,11 +226,159 @@ func TestReconcile(t *testing.T) {
 			{Path: nfd, ProjectID: "p20260101a", IsSymlink: true},
 		}
 
-		actions := Reconcile(nil, actual, "symlink")
+		actions := Reconcile(nil, actual, "symlink", "")
 
 		removes := filterActions(actions, ActionRemove)
 		if len(removes) != 1 {
 			t.Errorf("expected 1 remove, got %d", len(removes))
+		}
+	})
+}
+
+func TestReconcileForeignProjectLinks(t *testing.T) {
+	t.Run("foreign project link auto-resolved with ID suffix", func(t *testing.T) {
+		base := t.TempDir()
+		projectsFolder := filepath.Join(base, "projects")
+		os.MkdirAll(filepath.Join(projectsFolder, "h20260101a"), 0755)
+
+		// Foreign link blocks desired path.
+		linkDir := filepath.Join(base, "links")
+		os.MkdirAll(linkDir, 0755)
+		blocker := filepath.Join(linkDir, "2026-01-01 Test")
+		os.Symlink(filepath.Join(projectsFolder, "h20260101a"), blocker)
+
+		desired := map[string]DesiredLink{
+			blocker: {Target: filepath.Join(projectsFolder, "w20260101a"), ID: "w20260101a"},
+		}
+		actions := Reconcile(desired, nil, "symlink", projectsFolder)
+
+		creates := filterActions(actions, ActionCreate)
+		if len(creates) != 1 {
+			t.Fatalf("got %d creates, want 1; actions: %v", len(creates), actions)
+		}
+		wantPath := filepath.Join(linkDir, "2026-01-01 Test (w20260101a)")
+		if creates[0].Path != wantPath {
+			t.Errorf("create path = %q, want %q", creates[0].Path, wantPath)
+		}
+		if len(filterActions(actions, ActionConflict)) != 0 {
+			t.Error("unexpected conflict")
+		}
+	})
+
+	t.Run("suffixed path also blocked falls back to conflict", func(t *testing.T) {
+		base := t.TempDir()
+		projectsFolder := filepath.Join(base, "projects")
+		os.MkdirAll(filepath.Join(projectsFolder, "h20260101a"), 0755)
+
+		linkDir := filepath.Join(base, "links")
+		os.MkdirAll(linkDir, 0755)
+		blocker := filepath.Join(linkDir, "Test")
+		os.Symlink(filepath.Join(projectsFolder, "h20260101a"), blocker)
+		// Also block the suffixed path.
+		suffixed := filepath.Join(linkDir, "Test (w20260101a)")
+		os.WriteFile(suffixed, []byte("x"), 0644)
+
+		desired := map[string]DesiredLink{
+			blocker: {Target: filepath.Join(projectsFolder, "w20260101a"), ID: "w20260101a"},
+		}
+		actions := Reconcile(desired, nil, "symlink", projectsFolder)
+
+		conflicts := filterActions(actions, ActionConflict)
+		if len(conflicts) != 1 {
+			t.Fatalf("got %d conflicts, want 1; actions: %v", len(conflicts), actions)
+		}
+	})
+
+	t.Run("non-project symlink remains conflict", func(t *testing.T) {
+		base := t.TempDir()
+		projectsFolder := filepath.Join(base, "projects")
+		os.MkdirAll(projectsFolder, 0755)
+
+		linkDir := filepath.Join(base, "links")
+		os.MkdirAll(linkDir, 0755)
+		blocker := filepath.Join(linkDir, "Test")
+		os.Symlink("/tmp/random", blocker)
+
+		desired := map[string]DesiredLink{
+			blocker: {Target: filepath.Join(projectsFolder, "w20260101a"), ID: "w20260101a"},
+		}
+		actions := Reconcile(desired, nil, "symlink", projectsFolder)
+
+		conflicts := filterActions(actions, ActionConflict)
+		if len(conflicts) != 1 {
+			t.Fatalf("got %d conflicts, want 1", len(conflicts))
+		}
+		if conflicts[0].Detail != "blocked by existing file" {
+			t.Errorf("detail = %q, want %q", conflicts[0].Detail, "blocked by existing file")
+		}
+	})
+
+	t.Run("regular file remains conflict", func(t *testing.T) {
+		base := t.TempDir()
+		projectsFolder := filepath.Join(base, "projects")
+		os.MkdirAll(projectsFolder, 0755)
+
+		blocker := filepath.Join(base, "Test")
+		os.WriteFile(blocker, []byte("x"), 0644)
+
+		desired := map[string]DesiredLink{
+			blocker: {Target: filepath.Join(projectsFolder, "w20260101a"), ID: "w20260101a"},
+		}
+		actions := Reconcile(desired, nil, "symlink", projectsFolder)
+
+		conflicts := filterActions(actions, ActionConflict)
+		if len(conflicts) != 1 {
+			t.Fatalf("got %d conflicts, want 1", len(conflicts))
+		}
+		if conflicts[0].Detail != "blocked by regular file" {
+			t.Errorf("detail = %q, want %q", conflicts[0].Detail, "blocked by regular file")
+		}
+	})
+
+	t.Run("foreign ULID project link auto-resolved", func(t *testing.T) {
+		base := t.TempDir()
+		projectsFolder := filepath.Join(base, "projects")
+		os.MkdirAll(filepath.Join(projectsFolder, "01ARYZ6S41TSV4RRFFQ69G5FAV"), 0755)
+
+		linkDir := filepath.Join(base, "links")
+		os.MkdirAll(linkDir, 0755)
+		blocker := filepath.Join(linkDir, "Test")
+		os.Symlink(filepath.Join(projectsFolder, "01ARYZ6S41TSV4RRFFQ69G5FAV"), blocker)
+
+		desired := map[string]DesiredLink{
+			blocker: {Target: filepath.Join(projectsFolder, "p20260101a"), ID: "p20260101a"},
+		}
+		actions := Reconcile(desired, nil, "symlink", projectsFolder)
+
+		creates := filterActions(actions, ActionCreate)
+		if len(creates) != 1 {
+			t.Fatalf("got %d creates, want 1; actions: %v", len(creates), actions)
+		}
+		wantPath := filepath.Join(linkDir, "Test (p20260101a)")
+		if creates[0].Path != wantPath {
+			t.Errorf("create path = %q, want %q", creates[0].Path, wantPath)
+		}
+	})
+
+	t.Run("empty projectsFolder disables retry", func(t *testing.T) {
+		base := t.TempDir()
+		projectsFolder := filepath.Join(base, "projects")
+		os.MkdirAll(filepath.Join(projectsFolder, "h20260101a"), 0755)
+
+		linkDir := filepath.Join(base, "links")
+		os.MkdirAll(linkDir, 0755)
+		blocker := filepath.Join(linkDir, "Test")
+		os.Symlink(filepath.Join(projectsFolder, "h20260101a"), blocker)
+
+		desired := map[string]DesiredLink{
+			blocker: {Target: filepath.Join(projectsFolder, "w20260101a"), ID: "w20260101a"},
+		}
+		// Empty projectsFolder — should not retry.
+		actions := Reconcile(desired, nil, "symlink", "")
+
+		conflicts := filterActions(actions, ActionConflict)
+		if len(conflicts) != 1 {
+			t.Fatalf("got %d conflicts, want 1", len(conflicts))
 		}
 	})
 }

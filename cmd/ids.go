@@ -16,14 +16,14 @@ type idSets struct {
 
 // collectIDs scans both project and metadata folders in one pass.
 func collectIDs(cfg config.Config) (idSets, error) {
-	projectIDs, err := project.CollectIDsFromFolder(cfg.ProjectsFolder, cfg.ProjectIDType, "")
+	projectIDs, err := project.CollectIDsFromFolder(cfg.ProjectsFolder, cfg.ProjectIDType, cfg.ProjectIDPrefix, "")
 	if err != nil {
 		return idSets{}, fmt.Errorf("scan project folders: %w", err)
 	}
 
 	var metaIDs []string
 	if cfg.MetadataFolder != "" {
-		metaIDs, err = project.CollectIDsFromFolder(cfg.MetadataFolder, cfg.ProjectIDType, cfg.MetadataSuffix)
+		metaIDs, err = project.CollectIDsFromFolder(cfg.MetadataFolder, cfg.ProjectIDType, cfg.ProjectIDPrefix, cfg.MetadataSuffix)
 		if err != nil {
 			return idSets{}, fmt.Errorf("scan metadata folders: %w", err)
 		}

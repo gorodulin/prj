@@ -1,6 +1,9 @@
 package config
 
 import (
+	"encoding/json"
+	"os"
+	"path/filepath"
 	"reflect"
 	"strings"
 	"testing"
@@ -13,8 +16,8 @@ func TestFieldsCount(t *testing.T) {
 	if len(Fields) > numStructFields {
 		t.Errorf("Fields has %d entries, but Config only has %d fields", len(Fields), numStructFields)
 	}
-	if len(Fields) != 12 {
-		t.Errorf("Fields has %d entries, want 12", len(Fields))
+	if len(Fields) != 13 {
+		t.Errorf("Fields has %d entries, want 13", len(Fields))
 	}
 }
 
@@ -52,6 +55,7 @@ func TestFieldRoundTrip(t *testing.T) {
 		{"link_sink_name", "unsorted"},
 		{"link_comment_format", "{{.Tags}}"},
 		{"project_id_type", "ULID"},
+		{"project_id_prefix", "prj"},
 		{"machine_name", "laptop"},
 		{"machine_id", "abc123"},
 		{"retention_days", "30"},
@@ -82,6 +86,73 @@ func TestRetentionDaysRejectsNonInteger(t *testing.T) {
 	var cfg Config
 	if err := f.Set(&cfg, "abc"); err == nil {
 		t.Error("expected error for non-integer retention_days")
+	}
+}
+
+func TestSetFieldPreservesRawJSON(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "config.json")
+	os.WriteFile(path, []byte(`{"projects_folder": "/tmp/p"}`), 0644)
+
+	// Set a new key.
+	if err := SetField(path, "machine_name", "laptop"); err != nil {
+		t.Fatalf("SetField: %v", err)
+	}
+
+	// Read raw JSON and verify no defaults leaked.
+	data, _ := os.ReadFile(path)
+	var raw map[string]json.RawMessage
+	json.Unmarshal(data, &raw)
+
+	if _, ok := raw["metadata_folder_suffix"]; ok {
+		t.Error("metadata_folder_suffix should not appear in saved file")
+	}
+	if _, ok := raw["project_id_type"]; ok {
+		t.Error("project_id_type should not appear in saved file")
+	}
+	if _, ok := raw["machine_name"]; !ok {
+		t.Error("machine_name should be in saved file")
+	}
+	if _, ok := raw["projects_folder"]; !ok {
+		t.Error("projects_folder should be preserved in saved file")
+	}
+}
+
+func TestSetFieldRemovesEmpty(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "config.json")
+	os.WriteFile(path, []byte(`{"projects_folder": "/tmp/p", "machine_name": "old"}`), 0644)
+
+	if err := SetField(path, "machine_name", ""); err != nil {
+		t.Fatalf("SetField: %v", err)
+	}
+
+	data, _ := os.ReadFile(path)
+	var raw map[string]json.RawMessage
+	json.Unmarshal(data, &raw)
+
+	if _, ok := raw["machine_name"]; ok {
+		t.Error("machine_name should be removed when set to empty")
+	}
+}
+
+func TestSetFieldValidates(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "config.json")
+	os.WriteFile(path, []byte(`{}`), 0644)
+
+	err := SetField(path, "projects_folder", "relative/path")
+	if err == nil {
+		t.Fatal("expected validation error for relative path")
+	}
+}
+
+func TestSetFieldCreatesFile(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "subdir", "config.json")
+
+	if err := SetField(path, "projects_folder", "/tmp/p"); err != nil {
+		t.Fatalf("SetField: %v", err)
+	}
+
+	if _, err := os.Stat(path); err != nil {
+		t.Errorf("config file not created: %v", err)
 	}
 }
 

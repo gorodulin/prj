@@ -25,7 +25,9 @@ const (
 	DefaultMetadataSuffix  = "_meta"
 	DefaultLinkTitleFormat = "{{.Title}}"
 	DefaultProjectIDType   = "ULID"
+	DefaultProjectIDPrefix = "prj"
 )
+
 
 // ValidLinkKinds lists recognized values for LinkKind.
 var ValidLinkKinds = []string{LinkKindSymlink, LinkKindFinderAlias}
@@ -45,6 +47,7 @@ type Config struct {
 	LinkSinkName      string `json:"link_sink_name,omitempty"`
 	LinkCommentFormat string `json:"link_comment_format,omitempty"`
 	ProjectIDType   string `json:"project_id_type,omitempty"`
+	ProjectIDPrefix string `json:"project_id_prefix,omitempty"`
 	MachineName     string `json:"machine_name,omitempty"`
 	MachineID       string `json:"machine_id,omitempty"`
 	RetentionDays   int    `json:"retention_days,omitempty"`
@@ -114,6 +117,11 @@ func Load(path string) (Config, error) {
 		cfg.ProjectIDType = DefaultProjectIDType
 	}
 
+	// Default project ID prefix (only relevant for aYYYYMMDDb).
+	if cfg.ProjectIDPrefix == "" {
+		cfg.ProjectIDPrefix = DefaultProjectIDPrefix
+	}
+
 	if err := cfg.Validate(); err != nil {
 		return Config{}, fmt.Errorf("invalid config: %w", err)
 	}
@@ -128,6 +136,12 @@ func (c Config) Validate() error {
 	// Enum: link_kind
 	if c.LinkKind != "" && !containsStr(ValidLinkKinds, c.LinkKind) {
 		return fmt.Errorf("link_kind %q is not recognized (use %s)", c.LinkKind, JoinQuoted(ValidLinkKinds))
+	}
+
+	// project_id_prefix: validated by the project package (same rules as the
+	// prefix portion of the aYYYYMMDDb pattern).
+	if c.ProjectIDPrefix != "" && !project.IsValidPrefix(c.ProjectIDPrefix) {
+		return fmt.Errorf("project_id_prefix must be 1-5 lowercase letters (got %q)", c.ProjectIDPrefix)
 	}
 
 	// Enum: project_id_type
@@ -198,6 +212,74 @@ func isInsideDir(child, parent string) bool {
 		return false
 	}
 	return rel != "." && !strings.HasPrefix(rel, "..")
+}
+
+// SetField reads the config file at path, sets a single key to value,
+// validates the resulting config, and writes back. Only the target key is
+// modified; defaults injected by Load are not persisted. If value is empty,
+// the key is removed from the file.
+func SetField(path, key, value string) error {
+	if path == "" {
+		var err error
+		path, err = DefaultPath()
+		if err != nil {
+			return err
+		}
+	}
+
+	// Read existing raw JSON (or start fresh).
+	raw := make(map[string]json.RawMessage)
+	data, err := os.ReadFile(path)
+	if err == nil {
+		if err := json.Unmarshal(data, &raw); err != nil {
+			return fmt.Errorf("parse config %s: %w", path, err)
+		}
+	} else if !errors.Is(err, os.ErrNotExist) {
+		return fmt.Errorf("read config %s: %w", path, err)
+	}
+
+	// Set or remove the key in the raw map.
+	if value == "" {
+		delete(raw, key)
+	} else {
+		encoded, err := json.Marshal(value)
+		if err != nil {
+			return fmt.Errorf("encode value: %w", err)
+		}
+		raw[key] = encoded
+	}
+
+	// Special handling: retention_days is an integer in JSON.
+	if key == "retention_days" && value != "" {
+		raw[key] = json.RawMessage(value)
+	}
+
+	// Unmarshal into Config to validate.
+	merged, err := json.Marshal(raw)
+	if err != nil {
+		return fmt.Errorf("marshal config: %w", err)
+	}
+	var cfg Config
+	if err := json.Unmarshal(merged, &cfg); err != nil {
+		return fmt.Errorf("parse config: %w", err)
+	}
+	if err := cfg.Validate(); err != nil {
+		return fmt.Errorf("invalid config: %w", err)
+	}
+
+	// Write back ordered JSON from the raw map.
+	dir := filepath.Dir(path)
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		return fmt.Errorf("create config dir %s: %w", dir, err)
+	}
+	out, err := json.MarshalIndent(raw, "", "  ")
+	if err != nil {
+		return fmt.Errorf("marshal config: %w", err)
+	}
+	if err := os.WriteFile(path, out, 0644); err != nil {
+		return fmt.Errorf("write config %s: %w", path, err)
+	}
+	return nil
 }
 
 // Save writes config to the given path. If path is empty, uses DefaultPath.

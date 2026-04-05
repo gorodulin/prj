@@ -28,7 +28,7 @@ func TestScanManagedLinks(t *testing.T) {
 		linkPath := filepath.Join(linksRoot, "Work", "MyProject")
 		os.Symlink(filepath.Join(projectsFolder, "p20260101a"), linkPath)
 
-		managed, err := ScanManagedLinks(linksRoot, projectsFolder, "aYYYYMMDDb", "")
+		managed, err := ScanManagedLinks(linksRoot, projectsFolder, "aYYYYMMDDb", "p", "")
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -47,7 +47,7 @@ func TestScanManagedLinks(t *testing.T) {
 		linksRoot, _ := setupScanTree(t)
 		os.Symlink("/tmp/something", filepath.Join(linksRoot, "Work", "foreign"))
 
-		managed, err := ScanManagedLinks(linksRoot, filepath.Join(t.TempDir(), "projects"), "aYYYYMMDDb", "")
+		managed, err := ScanManagedLinks(linksRoot, filepath.Join(t.TempDir(), "projects"), "aYYYYMMDDb", "p", "")
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -60,7 +60,7 @@ func TestScanManagedLinks(t *testing.T) {
 		linksRoot, projectsFolder := setupScanTree(t)
 		os.WriteFile(filepath.Join(linksRoot, "Work", "notes.txt"), []byte("hi"), 0644)
 
-		managed, err := ScanManagedLinks(linksRoot, projectsFolder, "aYYYYMMDDb", "")
+		managed, err := ScanManagedLinks(linksRoot, projectsFolder, "aYYYYMMDDb", "p", "")
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -72,7 +72,7 @@ func TestScanManagedLinks(t *testing.T) {
 	t.Run("directory ignored", func(t *testing.T) {
 		linksRoot, projectsFolder := setupScanTree(t)
 		// "Work" dir already exists — should not be detected.
-		managed, err := ScanManagedLinks(linksRoot, projectsFolder, "aYYYYMMDDb", "")
+		managed, err := ScanManagedLinks(linksRoot, projectsFolder, "aYYYYMMDDb", "p", "")
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -86,7 +86,7 @@ func TestScanManagedLinks(t *testing.T) {
 		// Points to a valid-looking path that doesn't exist on disk.
 		os.Symlink(filepath.Join(projectsFolder, "p20260103c"), filepath.Join(linksRoot, "Work", "Gone"))
 
-		managed, err := ScanManagedLinks(linksRoot, projectsFolder, "aYYYYMMDDb", "")
+		managed, err := ScanManagedLinks(linksRoot, projectsFolder, "aYYYYMMDDb", "p", "")
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -103,7 +103,7 @@ func TestScanManagedLinks(t *testing.T) {
 		os.Symlink(filepath.Join(projectsFolder, "p20260101a"), filepath.Join(linksRoot, "Work", "ProjA"))
 		os.Symlink(filepath.Join(projectsFolder, "p20260102b"), filepath.Join(linksRoot, "Code", "python", "ProjB"))
 
-		managed, err := ScanManagedLinks(linksRoot, projectsFolder, "aYYYYMMDDb", "")
+		managed, err := ScanManagedLinks(linksRoot, projectsFolder, "aYYYYMMDDb", "p", "")
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -123,7 +123,7 @@ func TestScanManagedLinks(t *testing.T) {
 		os.Symlink(filepath.Join(projectsFolder, "p20260101a"), filepath.Join(linksRoot, "Work", "ProjA"))
 		os.Symlink(filepath.Join(projectsFolder, "p20260102b"), filepath.Join(linksRoot, "Work", "ProjB"))
 
-		managed, err := ScanManagedLinks(linksRoot, projectsFolder, "aYYYYMMDDb", "p20260101a")
+		managed, err := ScanManagedLinks(linksRoot, projectsFolder, "aYYYYMMDDb", "p", "p20260101a")
 		if err != nil {
 			t.Fatal(err)
 		}

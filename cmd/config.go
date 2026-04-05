@@ -56,25 +56,18 @@ func runConfigSet(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("unknown config key %q (valid keys: %s)", key, config.ValidKeysHelp())
 	}
 
+	// Validate the value via the field's Set (e.g. retention_days must be int).
+	var tmp config.Config
+	if err := f.Set(&tmp, value); err != nil {
+		return err
+	}
+
 	path, err := configPath()
 	if err != nil {
 		return err
 	}
 
-	cfg, err := config.Load(cfgFile)
-	if err != nil {
-		return fmt.Errorf("load config: %w", err)
-	}
-
-	if err := f.Set(&cfg, value); err != nil {
-		return err
-	}
-
-	if err := cfg.Validate(); err != nil {
-		return fmt.Errorf("invalid config: %w", err)
-	}
-
-	return config.Save(cfg, path)
+	return config.SetField(path, key, value)
 }
 
 func runConfigGet(cmd *cobra.Command, args []string) error {

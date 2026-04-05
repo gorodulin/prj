@@ -48,12 +48,13 @@ func TestCollectPlacements_ShowAll(t *testing.T) {
 	os.MkdirAll(filepath.Join(linksDir, sinkName), 0755)
 
 	cfg := config.Config{
-		ProjectsFolder: projectsDir,
-		MetadataFolder: metadataDir,
-		MetadataSuffix: "_meta",
-		ProjectIDType:  "aYYYYMMDDb",
-		LinksFolder:    linksDir,
-		LinkSinkName:   sinkName,
+		ProjectsFolder:  projectsDir,
+		MetadataFolder:  metadataDir,
+		MetadataSuffix:  "_meta",
+		ProjectIDType:   "aYYYYMMDDb",
+		ProjectIDPrefix: "p",
+		LinksFolder:     linksDir,
+		LinkSinkName:    sinkName,
 	}
 
 	ids, err := collectIDs(cfg)

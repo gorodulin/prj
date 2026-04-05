@@ -8,11 +8,12 @@ import (
 )
 
 // GenerateID creates a new unique project ID based on the given format.
+// For aYYYYMMDDb, prefix is the leading letter sequence (e.g. "prj").
 // It checks against existing IDs to avoid collisions.
-func GenerateID(idFormat string, existing []string) (string, error) {
+func GenerateID(idFormat string, existing []string, prefix string) (string, error) {
 	switch idFormat {
 	case FormatAYMDb:
-		return generateAYMDb(existing), nil
+		return generateAYMDb(existing, prefix), nil
 	case FormatUUIDv7:
 		return generateUUIDv7()
 	case FormatULID:
@@ -24,14 +25,13 @@ func GenerateID(idFormat string, existing []string) (string, error) {
 	}
 }
 
-func generateAYMDb(existing []string) string {
+func generateAYMDb(existing []string, prefix string) string {
 	existingSet := make(map[string]bool, len(existing))
 	for _, id := range existing {
 		existingSet[id] = true
 	}
 
 	dateStr := time.Now().UTC().Format("20060102")
-	prefix := "p"
 
 	for i := 0; ; i++ {
 		candidate := prefix + dateStr + base26Suffix(i)

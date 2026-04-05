@@ -28,11 +28,11 @@ func TestGenerateID(t *testing.T) {
 	today := time.Now().UTC().Format("20060102")
 
 	t.Run("first ID for today", func(t *testing.T) {
-		id, err := GenerateID(FormatAYMDb, nil)
+		id, err := GenerateID(FormatAYMDb, nil, "prj")
 		if err != nil {
 			t.Fatal(err)
 		}
-		want := "p" + today + "a"
+		want := "prj" + today + "a"
 		if id != want {
 			t.Errorf("got %q, want %q", id, want)
 		}
@@ -40,14 +40,14 @@ func TestGenerateID(t *testing.T) {
 
 	t.Run("skips existing", func(t *testing.T) {
 		existing := []string{
-			"p" + today + "a",
-			"p" + today + "b",
+			"prj" + today + "a",
+			"prj" + today + "b",
 		}
-		id, err := GenerateID(FormatAYMDb, existing)
+		id, err := GenerateID(FormatAYMDb, existing, "prj")
 		if err != nil {
 			t.Fatal(err)
 		}
-		want := "p" + today + "c"
+		want := "prj" + today + "c"
 		if id != want {
 			t.Errorf("got %q, want %q", id, want)
 		}
@@ -55,21 +55,32 @@ func TestGenerateID(t *testing.T) {
 
 	t.Run("skips non-contiguous", func(t *testing.T) {
 		existing := []string{
-			"p" + today + "a",
-			"p" + today + "c", // b is free
+			"prj" + today + "a",
+			"prj" + today + "c", // b is free
 		}
-		id, err := GenerateID(FormatAYMDb, existing)
+		id, err := GenerateID(FormatAYMDb, existing, "prj")
 		if err != nil {
 			t.Fatal(err)
 		}
-		want := "p" + today + "b"
+		want := "prj" + today + "b"
+		if id != want {
+			t.Errorf("got %q, want %q", id, want)
+		}
+	})
+
+	t.Run("custom prefix", func(t *testing.T) {
+		id, err := GenerateID(FormatAYMDb, nil, "x")
+		if err != nil {
+			t.Fatal(err)
+		}
+		want := "x" + today + "a"
 		if id != want {
 			t.Errorf("got %q, want %q", id, want)
 		}
 	})
 
 	t.Run("unsupported format", func(t *testing.T) {
-		_, err := GenerateID("unknown", nil)
+		_, err := GenerateID("unknown", nil, "")
 		if err == nil {
 			t.Fatal("expected error for unsupported format")
 		}
@@ -77,18 +88,18 @@ func TestGenerateID(t *testing.T) {
 
 	t.Run("UUIDv7 generates valid ID", func(t *testing.T) {
 		for i := 0; i < 100; i++ {
-			id, err := GenerateID(FormatUUIDv7, nil)
+			id, err := GenerateID(FormatUUIDv7, nil, "")
 			if err != nil {
 				t.Fatal(err)
 			}
-			if !IsValidID(id, FormatUUIDv7) {
+			if !IsValidID(id, FormatUUIDv7, "") {
 				t.Fatalf("generated UUIDv7 %q does not pass validation", id)
 			}
 		}
 	})
 
 	t.Run("UUIDv7 has version 7 and variant bits", func(t *testing.T) {
-		id, err := GenerateID(FormatUUIDv7, nil)
+		id, err := GenerateID(FormatUUIDv7, nil, "")
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -104,18 +115,18 @@ func TestGenerateID(t *testing.T) {
 
 	t.Run("ULID generates valid ID", func(t *testing.T) {
 		for i := 0; i < 100; i++ {
-			id, err := GenerateID(FormatULID, nil)
+			id, err := GenerateID(FormatULID, nil, "")
 			if err != nil {
 				t.Fatal(err)
 			}
-			if !IsValidID(id, FormatULID) {
+			if !IsValidID(id, FormatULID, "") {
 				t.Fatalf("generated ULID %q does not pass validation", id)
 			}
 		}
 	})
 
 	t.Run("ULID is 26 chars Crockford base32", func(t *testing.T) {
-		id, err := GenerateID(FormatULID, nil)
+		id, err := GenerateID(FormatULID, nil, "")
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -130,18 +141,18 @@ func TestGenerateID(t *testing.T) {
 
 	t.Run("KSUID generates valid ID", func(t *testing.T) {
 		for i := 0; i < 100; i++ {
-			id, err := GenerateID(FormatKSUID, nil)
+			id, err := GenerateID(FormatKSUID, nil, "")
 			if err != nil {
 				t.Fatal(err)
 			}
-			if !IsValidID(id, FormatKSUID) {
+			if !IsValidID(id, FormatKSUID, "") {
 				t.Fatalf("generated KSUID %q does not pass validation", id)
 			}
 		}
 	})
 
 	t.Run("KSUID is 27 chars base62", func(t *testing.T) {
-		id, err := GenerateID(FormatKSUID, nil)
+		id, err := GenerateID(FormatKSUID, nil, "")
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -154,7 +165,7 @@ func TestGenerateID(t *testing.T) {
 		for _, format := range []string{FormatUUIDv7, FormatULID, FormatKSUID} {
 			seen := make(map[string]bool)
 			for i := 0; i < 50; i++ {
-				id, err := GenerateID(format, nil)
+				id, err := GenerateID(format, nil, "")
 				if err != nil {
 					t.Fatal(err)
 				}

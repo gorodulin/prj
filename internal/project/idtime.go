@@ -36,6 +36,10 @@ func parseAYMDbTime(id string) (time.Time, bool) {
 	for start < len(id) && id[start] >= 'a' && id[start] <= 'z' {
 		start++
 	}
+	// Skip optional separator (- or _) between prefix and date.
+	if start < len(id) && (id[start] == '-' || id[start] == '_') {
+		start++
+	}
 	if start == 0 || start+8 > len(id) {
 		return time.Time{}, false
 	}

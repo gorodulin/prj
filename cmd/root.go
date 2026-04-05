@@ -20,7 +20,7 @@ var rootCmd = &cobra.Command{
 
 func Execute() {
 	if err := rootCmd.Execute(); err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		fmt.Fprintf(os.Stderr, "Error: %s\n", err)
 		os.Exit(1)
 	}
 }
@@ -28,4 +28,6 @@ func Execute() {
 func init() {
 	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default: $UserConfigDir/prj/config.json)")
 	rootCmd.Version = version
+	rootCmd.SilenceErrors = true
+	rootCmd.SilenceUsage = true
 }

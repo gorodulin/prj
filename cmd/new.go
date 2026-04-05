@@ -40,7 +40,7 @@ func runNew(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	newID, err := project.GenerateID(cfg.ProjectIDType, ids.all)
+	newID, err := project.GenerateID(cfg.ProjectIDType, ids.all, cfg.ProjectIDPrefix)
 	if err != nil {
 		return fmt.Errorf("generate project ID: %w", err)
 	}

@@ -19,10 +19,11 @@ func TestCollectIDs(t *testing.T) {
 	os.MkdirAll(filepath.Join(metadataDir, "p20260103c_meta"), 0755) // metadata-only
 
 	cfg := config.Config{
-		ProjectsFolder: projectsDir,
-		MetadataFolder: metadataDir,
-		MetadataSuffix: "_meta",
-		ProjectIDType:  "aYYYYMMDDb",
+		ProjectsFolder:  projectsDir,
+		MetadataFolder:  metadataDir,
+		MetadataSuffix:  "_meta",
+		ProjectIDType:   "aYYYYMMDDb",
+		ProjectIDPrefix: "p",
 	}
 
 	ids, err := collectIDs(cfg)
