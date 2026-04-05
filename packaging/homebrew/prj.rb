@@ -1,8 +1,8 @@
 class Prj < Formula
   desc "CLI tool for managing project folders, metadata, and links"
   homepage "https://github.com/gorodulin/prj"
-  url "https://github.com/gorodulin/prj/archive/refs/tags/v0.2.0.tar.gz"
-  sha256 "0d1df18fdf059f1f57f28da256c9bd20b39e8fc1f07637adb8d0d02df61a0b7a"
+  url "https://github.com/gorodulin/prj/archive/refs/tags/v0.3.0.tar.gz"
+  sha256 "fd60322a643dedfc2365045218958c84ee76ce548d3c6aea8ae3ba3e2393ca52"
   license "Apache-2.0"
 
   depends_on "go" => :build
