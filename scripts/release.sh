@@ -231,21 +231,29 @@ info "Uninstalled"
 
 echo ""
 
-# ── Step 15: Summary ─────────────────────────────────────────────
+# ── Step 15: Commit packaging updates and push ──────────────────
 
-echo "Done! Release $TAG is ready."
+git add "$FORMULA" "$PORTFILE"
+git commit -m "Update packaging for v$VERSION release"
+info "Committed packaging updates"
+
+git push origin "$MAIN_BRANCH"
+info "Pushed $MAIN_BRANCH"
+
+echo ""
+
+# ── Step 16: Summary ─────────────────────────────────────────────
+
+echo "Done! Release $TAG is ready and pushed."
 echo ""
 echo "Remaining manual steps:"
 echo ""
-echo "  1. Review packaging changes:"
-echo "     git diff packaging/"
-echo ""
-echo "  2. Push Homebrew formula:"
+echo "  1. Push Homebrew formula:"
 echo "     cd $TAP_DIR"
 echo "     git add Formula/prj.rb"
 echo "     git commit -m \"Update prj to $VERSION\""
 echo "     git push"
 echo ""
-echo "  3. Submit MacPorts Portfile:"
+echo "  2. Submit MacPorts Portfile:"
 echo "     cp $PORTFILE <macports-ports-fork>/devel/prj/Portfile"
 echo "     # Open PR to macports/macports-ports"
