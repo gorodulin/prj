@@ -90,9 +90,9 @@ JSON output includes all fields (`id`, `title`, `path`, `tags`):
 ```json
 [
   {
-    "id": "p20260402a",
+    "id": "prj20260402a",
     "title": "prj (Golang)",
-    "path": "/Users/.../p20260402a",
+    "path": "/Users/.../prj20260402a",
     "tags": ["cli", "golang"]
   }
 ]
@@ -194,11 +194,11 @@ tags: [cli, golang]
 Edit project metadata (title and/or tags).
 
 ```bash
-prj edit p20260402a --title "New Title"           # set title
-prj edit p20260402a --tags "cli,golang"           # replace all tags
-prj edit p20260402a --add-tags "new-tag"          # add to existing tags
-prj edit p20260402a --remove-tags "old-tag"       # remove specific tags
-prj edit p20260402a --title "" --tags ""          # clear title and tags
+prj edit prj20260402a --title "New Title"           # set title
+prj edit prj20260402a --tags "cli,golang"           # replace all tags
+prj edit prj20260402a --add-tags "new-tag"          # add to existing tags
+prj edit prj20260402a --remove-tags "old-tag"       # remove specific tags
+prj edit prj20260402a --title "" --tags ""          # clear title and tags
 prj edit current --add-tags "wip"                 # edit project in cwd
 ```
 
@@ -208,7 +208,7 @@ Output: `<id><TAB><title>` (or just `<id>` if no title).
 
 Register a project that exists on another machine but not on this one:
 ```bash
-prj edit p20250101a --force --title "Remote Project" --tags "infra"
+prj edit prj20250101a --force --title "Remote Project" --tags "infra"
 ```
 
 `--force` creates metadata for a project even if its folder is not
@@ -220,7 +220,7 @@ Sync project links in a user-organized folder tree.
 
 ```bash
 prj link                    # sync all projects
-prj link p20260402a         # sync one project only
+prj link prj20260402a         # sync one project only
 prj link current            # sync project in cwd
 prj link --dry-run          # preview changes
 prj link --verbose          # include unchanged links in output
@@ -241,9 +241,9 @@ in [Config](#config)), the project is placed there instead.
 
 Output shows what changed:
 ```
-+ Programming/golang/prj (Golang)       → p20260402a
-- Photos/Old Holiday                    (p20250101a)
-~ Work/cli/prj (Golang)                → p20260402a (wrong kind: want symlink)
++ Programming/golang/prj (Golang)       → prj20260402a
+- Photos/Old Holiday                    (prj20250101a)
+~ Work/cli/prj (Golang)                → prj20260402a (wrong kind: want symlink)
 
 2 created, 1 removed, 1 replaced
 ```
@@ -258,9 +258,9 @@ See [docs/link-system.md](docs/link-system.md) for the full design.
 Print the full path to a project folder.
 
 ```bash
-prj path p20260402a            # /Users/.../projects/p20260402a
+prj path prj20260402a            # /Users/.../projects/prj20260402a
 prj path current               # path of project in cwd
-prj path p20260402a --strict   # error if folder doesn't exist
+prj path prj20260402a --strict   # error if folder doesn't exist
 ```
 
 Default: prints the path for any valid ID, warns on stderr if the folder doesn't exist locally. Useful as a path builder in scripts.
@@ -269,10 +269,10 @@ Default: prints the path for any valid ID, warns on stderr if the folder doesn't
 
 ```bash
 # Path builder (always succeeds for valid IDs):
-dir=$(prj path p20250101a)
+dir=$(prj path prj20250101a)
 
 # Strict (fails if not synced):
-dir=$(prj path p20250101a --strict) || echo "not synced"
+dir=$(prj path prj20250101a --strict) || echo "not synced"
 ```
 
 Invalid ID format always errors regardless of `--strict`.
@@ -308,7 +308,8 @@ enable additional features.
   "link_kind": "symlink",
   "link_title_format": "{{.ID}} {{.Title}}",
   "link_sink_name": "unsorted",
-  "project_id_type": "ULID",
+  "project_id_type": "aYYYYMMDDb",
+  "project_id_prefix": "prj",
   "machine_name": "Newton",
   "machine_id": "newton"
 }
@@ -319,6 +320,7 @@ enable additional features.
 | `projects_folder` | **(required)** Root directory containing project folders |
 | `metadata_folder` | Root directory for project metadata (titles, tags, edit history). Metadata directories are named `<project-id>_meta` |
 | `project_id_type` | ID format for new projects: `ULID` (default), `UUIDv7`, `KSUID`, `aYYYYMMDDb`. See [Choosing a project ID format](#choosing-a-project-id-format) |
+| `project_id_prefix` | Prefix for `aYYYYMMDDb` IDs: 1-5 lowercase letters, optionally followed by `-` or `_` (default: `prj`). Ignored by other formats |
 | `machine_name` | Human-readable name for this machine (recorded in metadata) |
 | `machine_id` | Machine identifier (recorded in metadata) |
 | `retention_days` | Automatically delete metadata entries older than N days. 0 = disabled (default) |
@@ -381,8 +383,8 @@ Set the format via `project_id_type` in config. Default: `ULID`.
 
 | | ULID | UUIDv7 | KSUID | aYYYYMMDDb |
 |---|---|---|---|---|
-| Example | `01J5B3GR41TSV4RRPQD3NGHX42` | `01932c07-a9c3-7b2a-8f1a-6b3c9d4e5f67` | `2E8JwMKbBEgHvAsD9kNLRqpTiS0` | `p20260402a` |
-| Length | 26 | 36 (with dashes) | 27 | 11-13 |
+| Example | `01J5B3GR41TSV4RRPQD3NGHX42` | `01932c07-a9c3-7b2a-8f1a-6b3c9d4e5f67` | `2E8JwMKbBEgHvAsD9kNLRqpTiS0` | `prj20260402a` |
+| Length | 26 | 36 (with dashes) | 27 | 12-16 |
 | Characters | `0-9 A-Z` (no I, L, O, U) | `0-9 a-f` + dashes | `0-9 A-Z a-z` | `a-z 0-9` |
 | Time precision | Milliseconds | Milliseconds | Seconds | Day |
 | Lexicographic sort | Yes | Yes | Yes | Yes |
@@ -406,7 +408,8 @@ Only safe on case-sensitive filesystems (Linux ext4, ZFS).
 
 **aYYYYMMDDb** — human-friendly, date-based format for personal projects
 where you sometimes create folders by hand. Short and readable
-(`p20260402a`), but requires scanning existing IDs to avoid collisions
+(`prj20260402a`). The prefix is configurable via `project_id_prefix`
+(default: `prj`). Requires scanning existing IDs to avoid collisions
 and is not globally unique across machines.
 
 ## Development
