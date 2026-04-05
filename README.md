@@ -1,6 +1,6 @@
 ---
 title: Projector
-tags: [cli, golang, project-management, metadata, links]
+tags: [cli, cross-platform, focus, golang, links, metadata, programming, project, project-management, projector, sync]
 ---
 
 # Projector (prj)
