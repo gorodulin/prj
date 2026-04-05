@@ -390,12 +390,12 @@ Set the format via `project_id_type` in config. Default: `ULID`.
 |---|---|---|---|---|
 | Example | `01J5B3GR41TSV4RRPQD3NGHX42` | `01932c07-a9c3-7b2a-8f1a-6b3c9d4e5f67` | `2E8JwMKbBEgHvAsD9kNLRqpTiS0` | `prj20260402a` |
 | Length | 26 | 36 (with dashes) | 27 | 12-16 |
-| Characters | `0-9 A-Z` (no I, L, O, U) | `0-9 a-f` + dashes | `0-9 A-Z a-z` | `a-z 0-9` |
+| Characters | `0-9 A-Z` (no I, L, O, U) | `0-9 a-f` + dashes | `0-9 A-Z a-z` | `a-z 0-9 - _` |
 | Time precision | Milliseconds | Milliseconds | Seconds | Day |
 | Lexicographic sort | Yes | Yes | Yes | Yes |
 | Case-sensitive | No | No | **Yes** | No |
 | Globally unique | Yes | Yes | Yes | No (needs collision check) |
-| Filesystem-safe | All OS | All OS | **Risk on case-insensitive FS** | All OS |
+| Filesystem-safe | All OS | All OS | **Rare risk on case-insensitive FS** | All OS |
 
 ### Recommendations
 
@@ -404,18 +404,20 @@ globally unique without collision checks. Safe on macOS (APFS/HFS+) and
 Windows (NTFS) which are case-insensitive by default. Crockford Base32
 avoids ambiguous characters (0/O, 1/I/L).
 
+**aYYYYMMDDb** — the best choice for personal projects. Human-friendly,
+date-based, short and readable (`prj20260402a`). You can create folders
+by hand and instantly see when a project was started. The prefix is
+configurable via `project_id_prefix` (default: `prj`). Proven in practice
+over 20 years of personal project management. Not globally unique across
+machines — requires scanning existing IDs to avoid collisions.
+
 **UUIDv7** — use if your tooling expects standard UUIDs. Same time precision
 as ULID but longer (36 chars with dashes).
 
 **KSUID** — use with caution. Mixed-case Base62 means `2E8Jw` and `2e8jw`
 are different IDs but point to the same folder on macOS and Windows.
-Only safe on case-sensitive filesystems (Linux ext4, ZFS).
-
-**aYYYYMMDDb** — human-friendly, date-based format for personal projects
-where you sometimes create folders by hand. Short and readable
-(`prj20260402a`). The prefix is configurable via `project_id_prefix`
-(default: `prj`). Requires scanning existing IDs to avoid collisions
-and is not globally unique across machines.
+Only safe on case-sensitive filesystems (Linux ext4, ZFS). Collision risk
+is extremely low in practice.
 
 ## Development
 
