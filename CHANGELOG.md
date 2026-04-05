@@ -5,6 +5,29 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.3.0] - 2026-04-05
+
+### Added
+- Configurable project ID prefix (`project_id_prefix`) for the `aYYYYMMDDb`
+  format — default changed from `p` to `prj`. Supports 1-5 lowercase letters
+  with optional `-` or `_` separator (e.g. `prj`, `prj-`, `dev_`)
+- All commands now respect the configured prefix when matching project IDs
+- Cross-prefix link coexistence: `prj link` auto-resolves name conflicts
+  between project links of different prefixes/formats by appending `(ID)`
+  suffix, instead of reporting "blocked by existing file"
+- `project.IsAnyValidID` — format-agnostic project ID detector used for
+  recognizing foreign project links
+
+### Changed
+- `IsValidID` now takes a third `prefix` parameter (mandatory for
+  `aYYYYMMDDb`, ignored for other formats)
+- `GenerateID` now takes a `prefix` parameter
+- `Reconcile` accepts `projectsFolder` for foreign link detection
+- Default project ID prefix changed from `p` to `prj`
+
+### Improved
+- Extracted `resolveTarget` helper from `probeLink` (DRY)
+
 ## [0.2.0] - 2026-04-04
 
 ### Added
@@ -43,5 +66,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Cross-platform support: macOS, Linux, Windows, FreeBSD
 - Shell completions for bash, zsh, fish
 
+[0.3.0]: https://github.com/gorodulin/prj/releases/tag/v0.3.0
 [0.2.0]: https://github.com/gorodulin/prj/releases/tag/v0.2.0
 [0.1.0]: https://github.com/gorodulin/prj/releases/tag/v0.1.0
