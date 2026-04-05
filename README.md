@@ -1,3 +1,8 @@
+---
+title: Projector
+tags: [cli, golang, project-management, metadata, links]
+---
+
 # Projector (prj)
 
 Projector is a cross-platform CLI tool for managing project folders, their metadata, and links.
