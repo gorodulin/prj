@@ -99,6 +99,7 @@ if $DRY_RUN; then
     echo "Dry run — would perform:"
     echo "  1. git tag $TAG && git push origin $TAG"
     echo "  2. gh release create $TAG"
+    echo "  2b. make cross && gh release upload $TAG dist/prj-*"
     echo "  3. Download $TARBALL_URL"
     echo "  4. Compute checksums and patch $FORMULA and $PORTFILE"
     echo "  5. Local brew install, test, uninstall"
@@ -145,6 +146,14 @@ else
     gh release create "$TAG" --title "$TAG" --generate-notes
     info "Created GitHub release $TAG"
 fi
+
+# ── Step 8b: Upload cross-compiled binaries ─────────────────────
+
+make cross
+info "Cross-compiled binaries"
+
+gh release upload "$TAG" dist/prj-* --clobber
+info "Uploaded binaries to release $TAG"
 
 echo ""
 

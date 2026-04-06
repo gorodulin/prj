@@ -9,6 +9,20 @@ Projector is a cross-platform CLI tool for managing project folders, their metad
 
 ## Install
 
+### Quick install (Linux, macOS, FreeBSD)
+
+```bash
+curl -sSfL https://raw.githubusercontent.com/gorodulin/prj/main/scripts/install.sh | sh
+```
+
+To install a specific version:
+
+```bash
+VERSION=0.3.0 curl -sSfL https://raw.githubusercontent.com/gorodulin/prj/main/scripts/install.sh | sh
+```
+
+Works in Docker containers (Alpine, slim, etc.). Installs to `/usr/local/bin` or `~/.local/bin`.
+
 ### macOS (Homebrew)
 
 ```bash
