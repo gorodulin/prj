@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"os"
 	"path/filepath"
 	"testing"
 
@@ -87,6 +88,85 @@ func TestProjectIDFromPath(t *testing.T) {
 				t.Errorf("got %q, want %q", id, tt.wantID)
 			}
 		})
+	}
+}
+
+func TestResolveCurrentProjectID_symlink(t *testing.T) {
+	// Create a temporary projects folder with a project subfolder.
+	tmp := t.TempDir()
+	projFolder := filepath.Join(tmp, "Projects")
+	projDir := filepath.Join(projFolder, "p20260402a")
+	if err := os.MkdirAll(projDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	// Create a symlink pointing into the project folder.
+	linkDir := filepath.Join(tmp, "Links")
+	if err := os.MkdirAll(linkDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	symlink := filepath.Join(linkDir, "my-project")
+	if err := os.Symlink(projDir, symlink); err != nil {
+		t.Fatal(err)
+	}
+
+	// cd into the symlink.
+	orig, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { os.Chdir(orig) })
+
+	if err := os.Chdir(symlink); err != nil {
+		t.Fatal(err)
+	}
+
+	cfg := config.Config{ProjectsFolder: projFolder}
+	id, err := resolveCurrentProjectID(cfg)
+	if err != nil {
+		t.Fatalf("expected success from symlinked cwd, got: %v", err)
+	}
+	if id != "p20260402a" {
+		t.Errorf("got %q, want %q", id, "p20260402a")
+	}
+}
+
+func TestResolveCurrentProjectID_crossProjectSymlink(t *testing.T) {
+	// projA/link → projB: should resolve to projB, not projA.
+	tmp := t.TempDir()
+	projFolder := filepath.Join(tmp, "Projects")
+	projA := filepath.Join(projFolder, "projA")
+	projB := filepath.Join(projFolder, "projB")
+	if err := os.MkdirAll(projA, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(projB, 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	// Symlink inside projA that points to projB.
+	symlink := filepath.Join(projA, "link")
+	if err := os.Symlink(projB, symlink); err != nil {
+		t.Fatal(err)
+	}
+
+	orig, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { os.Chdir(orig) })
+
+	if err := os.Chdir(symlink); err != nil {
+		t.Fatal(err)
+	}
+
+	cfg := config.Config{ProjectsFolder: projFolder}
+	id, err := resolveCurrentProjectID(cfg)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if id != "projB" {
+		t.Errorf("got %q, want %q (should resolve to target, not containing project)", id, "projB")
 	}
 }
 

@@ -23,7 +23,19 @@ func resolveCurrentProjectID(cfg config.Config) (string, error) {
 		return "", fmt.Errorf("get working directory: %w", err)
 	}
 
-	return projectIDFromPath(cwd, cfg.ProjectsFolder, cfg.ProjectIDType, cfg.ProjectIDPrefix)
+	// Resolve symlinks so that "current" works when cwd is inside a
+	// symlinked path (e.g. a link created by "prj link").
+	cwd, err = filepath.EvalSymlinks(cwd)
+	if err != nil {
+		return "", fmt.Errorf("resolve working directory: %w", err)
+	}
+
+	projFolder, err := filepath.EvalSymlinks(cfg.ProjectsFolder)
+	if err != nil {
+		return "", fmt.Errorf("resolve projects folder: %w", err)
+	}
+
+	return projectIDFromPath(cwd, projFolder, cfg.ProjectIDType, cfg.ProjectIDPrefix)
 }
 
 // projectIDFromPath extracts a valid project ID from cwd relative to
