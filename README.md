@@ -22,6 +22,8 @@ VERSION=0.3.0 curl -sSfL https://raw.githubusercontent.com/gorodulin/prj/main/sc
 ```
 
 Works in Docker containers (Alpine, slim, etc.). Installs to `/usr/local/bin` or `~/.local/bin`.
+Shell completions for bash, zsh, and fish are installed automatically when
+standard completion directories are found. Restart your shell to activate.
 
 ### macOS (Homebrew)
 

@@ -209,6 +209,67 @@ else
     info "Installed prj ${INSTALLED_VERSION}"
 fi
 
+# ── Shell completions ───────────────────────────────────────────
+
+install_completions() {
+    PRJ="${INSTALL_DIR}/${BINARY_NAME}"
+    COMP=""
+
+    # Bash
+    for d in /usr/local/share/bash-completion/completions /usr/share/bash-completion/completions /etc/bash_completion.d; do
+        if [ -d "$d" ] && [ -w "$d" ]; then
+            "$PRJ" completion bash > "$d/prj" 2>/dev/null && COMP="${COMP} bash"
+            break
+        fi
+    done
+    if ! echo "$COMP" | grep -q bash && command -v bash >/dev/null 2>&1; then
+        d="${HOME}/.local/share/bash-completion/completions"
+        mkdir -p "$d" 2>/dev/null && "$PRJ" completion bash > "$d/prj" 2>/dev/null && COMP="${COMP} bash"
+    fi
+
+    # Zsh
+    ZSH_HINT=""
+    for d in /usr/local/share/zsh/site-functions /usr/share/zsh/site-functions; do
+        if [ -d "$d" ] && [ -w "$d" ]; then
+            "$PRJ" completion zsh > "$d/_prj" 2>/dev/null && COMP="${COMP} zsh"
+            break
+        fi
+    done
+    if ! echo "$COMP" | grep -q zsh && command -v zsh >/dev/null 2>&1; then
+        d="${HOME}/.local/share/zsh/site-functions"
+        if mkdir -p "$d" 2>/dev/null && "$PRJ" completion zsh > "$d/_prj" 2>/dev/null; then
+            COMP="${COMP} zsh"
+            ZSH_HINT="$d"
+        fi
+    fi
+
+    # Fish
+    FISH_DONE=false
+    for d in /usr/local/share/fish/vendor_completions.d /usr/share/fish/vendor_completions.d; do
+        if [ -d "$d" ] && [ -w "$d" ]; then
+            "$PRJ" completion fish > "$d/prj.fish" 2>/dev/null && FISH_DONE=true && COMP="${COMP} fish"
+            break
+        fi
+    done
+    if ! "$FISH_DONE" && command -v fish >/dev/null 2>&1; then
+        d="${HOME}/.config/fish/completions"
+        mkdir -p "$d" 2>/dev/null && "$PRJ" completion fish > "$d/prj.fish" 2>/dev/null && COMP="${COMP} fish"
+    fi
+
+    if [ -n "$COMP" ]; then
+        info "Shell completions installed:${COMP}"
+        if [ -n "$ZSH_HINT" ]; then
+            info "Zsh: add this to your .zshrc (before compinit):"
+            info "  fpath=(${ZSH_HINT} \$fpath)"
+        fi
+        info "Restart your shell to activate"
+    else
+        info "To enable completions, see: prj completion --help"
+    fi
+}
+
+install_completions
+
 # Warn if install dir is not in PATH.
 case ":${PATH}:" in
     *":${INSTALL_DIR}:"*) ;;
