@@ -89,8 +89,9 @@ func TestValidate(t *testing.T) {
 			cfg:  Config{LinkKind: "symlink"},
 		},
 		{
-			name: "link_kind finder-alias is ok",
-			cfg:  Config{LinkKind: "finder-alias"},
+			name:    "link_kind finder-alias",
+			cfg:     Config{LinkKind: "finder-alias"},
+			wantErr: !finderAliasSupported,
 		},
 		{
 			name:    "link_kind unknown rejected",

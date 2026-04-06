@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/gorodulin/prj/internal/platform"
 	"github.com/gorodulin/prj/internal/project"
 )
 
@@ -30,7 +31,7 @@ const (
 
 
 // ValidLinkKinds lists recognized values for LinkKind.
-var ValidLinkKinds = []string{LinkKindSymlink, LinkKindFinderAlias}
+var ValidLinkKinds = platform.SupportedLinkTypes()
 
 // ValidProjectIDTypes lists recognized values for ProjectIDType.
 var ValidProjectIDTypes = []string{project.FormatAYMDb, project.FormatUUIDv7, project.FormatULID, project.FormatKSUID}
