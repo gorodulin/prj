@@ -14,7 +14,7 @@ help: ## Show available targets
 	@grep -E '^[a-z][a-z_-]+:.*##' $(MAKEFILE_LIST) | sort | awk -F ':.*## ' '{printf "  %-12s %s\n", $$1, $$2}'
 
 build: ## Build binary
-	go build -ldflags "$(LDFLAGS)" -o $(APP) .
+	go build -trimpath -ldflags "$(LDFLAGS)" -o $(APP) .
 
 test: ## Run tests with race detector and coverage
 	go test -v -race -cover ./...
@@ -35,7 +35,7 @@ clean: ## Remove build artifacts
 	rm -rf $(DIST)
 
 install: ## Install to $GOPATH/bin
-	go install -ldflags "$(LDFLAGS)" .
+	go install -trimpath -ldflags "$(LDFLAGS)" .
 
 release: ## Tag, release, and update packaging (V=x.y.z [DRY_RUN=1])
 	@test -n "$(V)" || { echo "Current: $$(git describe --tags --abbrev=0 2>/dev/null || echo none)"; echo "Usage: make release V=x.y.z [DRY_RUN=1]"; exit 1; }
@@ -45,7 +45,7 @@ cross: ## Cross-compile for all platforms
 	@mkdir -p $(DIST)
 	@for platform in $(PLATFORMS); do \
 		GOOS=$${platform%/*} GOARCH=$${platform#*/} CGO_ENABLED=0 \
-		go build -ldflags "$(LDFLAGS)" \
+		go build -trimpath -ldflags "$(LDFLAGS)" \
 			-o $(DIST)/$(APP)-$${platform%/*}-$${platform#*/}$$([ "$${platform%/*}" = "windows" ] && echo .exe) . ; \
 		echo "  built $(DIST)/$(APP)-$${platform%/*}-$${platform#*/}" ; \
 	done

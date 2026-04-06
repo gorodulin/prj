@@ -9,7 +9,7 @@ class Prj < Formula
 
   def install
     ldflags = "-s -w -X github.com/gorodulin/prj/cmd.version=#{version}"
-    system "go", "build", *std_go_args(ldflags:)
+    system "go", "build", "-trimpath", *std_go_args(ldflags:)
     generate_completions_from_executable(bin/"prj", "completion")
   end
 
