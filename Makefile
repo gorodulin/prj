@@ -5,7 +5,7 @@ DIST     := dist
 
 PLATFORMS := darwin/amd64 darwin/arm64 \
              linux/amd64 linux/arm64 \
-             windows/amd64 \
+             windows/amd64 windows/arm64 \
              freebsd/amd64
 
 .PHONY: help build test lint check cover clean install cross release
