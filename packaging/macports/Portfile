@@ -3,7 +3,7 @@
 PortSystem          1.0
 PortGroup           golang 1.0
 
-go.setup            gorodulin/prj 0.4.0 v
+go.setup            gorodulin/prj 0.4.1 v
 categories          devel
 license             Apache-2
 maintainers         {gorodulin @gorodulin}
@@ -12,9 +12,9 @@ long_description    Projector (prj) is a cross-platform CLI tool for managing \
                     project folders, their metadata, and links. Organizes \
                     projects by topic using a tag-driven link tree.
 
-checksums           rmd160  47070ae9b878e06b24460bceb6002fffd023fad5 \
-                    sha256  bda460d2dd419a1df5100677d89d56f0781355c626ff25f6b50f02b3195a859e \
-                    size    45129
+checksums           rmd160  4e8eb0eb477a5f39776b049f5f16d71861311772 \
+                    sha256  1ee8ba482a4f6571e636d5bb4f036ac1d73cbe382073a0f0ac25959e156dc679 \
+                    size    45337
 
 build.args-append   -ldflags "-s -w -X github.com/gorodulin/prj/cmd.version=${version}"
 
