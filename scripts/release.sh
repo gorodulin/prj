@@ -12,6 +12,12 @@ set -euo pipefail
 
 FORMULA="packaging/homebrew/prj.rb"
 PORTFILE="packaging/macports/Portfile"
+WINGET_DIR="packaging/winget"
+WINGET_VERSION="gorodulin.prj.yaml"
+WINGET_INSTALLER="gorodulin.prj.installer.yaml"
+WINGET_LOCALE="gorodulin.prj.locale.en-US.yaml"
+WINGET_FORK="gorodulin/winget-pkgs"
+WINGET_UPSTREAM="microsoft/winget-pkgs"
 TAP_NAME="gorodulin/tap"
 MAIN_BRANCH="main"
 
@@ -89,7 +95,14 @@ info "CHANGELOG mentions $VERSION"
 # Packaging files exist
 [[ -f "$FORMULA" ]] || error "Formula not found: $FORMULA"
 [[ -f "$PORTFILE" ]] || error "Portfile not found: $PORTFILE"
+[[ -f "$WINGET_DIR/$WINGET_VERSION" ]] || error "WinGet manifest not found: $WINGET_DIR/$WINGET_VERSION"
+[[ -f "$WINGET_DIR/$WINGET_INSTALLER" ]] || error "WinGet manifest not found: $WINGET_DIR/$WINGET_INSTALLER"
+[[ -f "$WINGET_DIR/$WINGET_LOCALE" ]] || error "WinGet manifest not found: $WINGET_DIR/$WINGET_LOCALE"
 info "Packaging files exist"
+
+# WinGet fork exists
+gh api "repos/$WINGET_FORK" --silent 2>/dev/null || error "WinGet fork not found: $WINGET_FORK"
+info "WinGet fork accessible"
 
 echo ""
 
@@ -103,6 +116,7 @@ if $DRY_RUN; then
     echo "  3. Download $TARBALL_URL"
     echo "  4. Compute checksums and patch $FORMULA and $PORTFILE"
     echo "  5. Local brew install, test, uninstall"
+    echo "  6. Patch WinGet manifests and submit PR to $WINGET_UPSTREAM"
     echo ""
     echo "All guards passed. Run without --dry-run to proceed."
     exit 0
@@ -200,9 +214,49 @@ sed \
 mv "$PORTFILE_TMP" "$PORTFILE"
 info "Patched $PORTFILE"
 
+# ── Step 12b: Patch WinGet manifests ────────────────────────────
+
+WIN_AMD64="/tmp/prj-${VERSION}-windows-amd64.exe"
+WIN_ARM64="/tmp/prj-${VERSION}-windows-arm64.exe"
+
+curl -sSfL -o "$WIN_AMD64" "$REPO_URL/releases/download/$TAG/prj-windows-amd64.exe" \
+    || error "Failed to download Windows amd64 binary"
+curl -sSfL -o "$WIN_ARM64" "$REPO_URL/releases/download/$TAG/prj-windows-arm64.exe" \
+    || error "Failed to download Windows arm64 binary"
+info "Downloaded Windows binaries"
+
+WIN_AMD64_SHA="$(shasum -a 256 "$WIN_AMD64" | cut -d' ' -f1 | tr '[:lower:]' '[:upper:]')"
+WIN_ARM64_SHA="$(shasum -a 256 "$WIN_ARM64" | cut -d' ' -f1 | tr '[:lower:]' '[:upper:]')"
+
+info "Windows amd64 SHA256: $WIN_AMD64_SHA"
+info "Windows arm64 SHA256: $WIN_ARM64_SHA"
+
+for f in "$WINGET_VERSION" "$WINGET_INSTALLER" "$WINGET_LOCALE"; do
+    sed -e "s|^PackageVersion:.*|PackageVersion: $VERSION|" \
+        "$WINGET_DIR/$f" > "$WINGET_DIR/$f.tmp"
+    mv "$WINGET_DIR/$f.tmp" "$WINGET_DIR/$f"
+done
+
+sed -i.bak \
+    -e "s|InstallerSha256: [A-F0-9]\{64\}|PLACEHOLDER_SHA|" \
+    -e "s|InstallerUrl: .*/prj-windows-amd64\.exe|InstallerUrl: $REPO_URL/releases/download/$TAG/prj-windows-amd64.exe|" \
+    -e "s|InstallerUrl: .*/prj-windows-arm64\.exe|InstallerUrl: $REPO_URL/releases/download/$TAG/prj-windows-arm64.exe|" \
+    "$WINGET_DIR/$WINGET_INSTALLER"
+rm -f "$WINGET_DIR/$WINGET_INSTALLER.bak"
+
+# Replace SHA placeholders in order: first occurrence is amd64, second is arm64
+awk -v amd64="$WIN_AMD64_SHA" -v arm64="$WIN_ARM64_SHA" '
+    /PLACEHOLDER_SHA/ && !done_amd64 { sub(/PLACEHOLDER_SHA/, "InstallerSha256: " amd64); done_amd64=1 }
+    /PLACEHOLDER_SHA/ && done_amd64  { sub(/PLACEHOLDER_SHA/, "InstallerSha256: " arm64) }
+    { print }
+' "$WINGET_DIR/$WINGET_INSTALLER" > "$WINGET_DIR/$WINGET_INSTALLER.tmp"
+mv "$WINGET_DIR/$WINGET_INSTALLER.tmp" "$WINGET_DIR/$WINGET_INSTALLER"
+
+info "Patched WinGet manifests"
+
 # ── Step 13: Verify patches ─────────────────────────────────────
 
-if grep -q "PLACEHOLDER" "$FORMULA" "$PORTFILE"; then
+if grep -q "PLACEHOLDER" "$FORMULA" "$PORTFILE" "$WINGET_DIR"/*; then
     error "PLACEHOLDER still present in packaging files"
 fi
 info "No PLACEHOLDERs remain"
@@ -242,7 +296,7 @@ echo ""
 
 # ── Step 15: Commit packaging updates and push ──────────────────
 
-git add "$FORMULA" "$PORTFILE"
+git add "$FORMULA" "$PORTFILE" "$WINGET_DIR"
 git commit -m "Update packaging for v$VERSION release"
 info "Committed packaging updates"
 
@@ -251,7 +305,44 @@ info "Pushed $MAIN_BRANCH"
 
 echo ""
 
-# ── Step 16: Summary ─────────────────────────────────────────────
+# ── Step 16: Submit WinGet PR ───────────────────────────────────
+
+echo "Submitting WinGet manifest..."
+
+gh api -X POST "repos/$WINGET_FORK/merge-upstream" -f branch=master --silent 2>/dev/null
+info "Synced $WINGET_FORK with upstream"
+
+MASTER_SHA="$(gh api "repos/$WINGET_FORK/git/refs/heads/master" --jq '.object.sha')"
+WINGET_BRANCH="prj-$VERSION"
+
+gh api "repos/$WINGET_FORK/git/refs" -X POST \
+    -f ref="refs/heads/$WINGET_BRANCH" -f sha="$MASTER_SHA" --silent \
+    || error "Failed to create branch $WINGET_BRANCH on $WINGET_FORK"
+info "Created branch $WINGET_BRANCH"
+
+WINGET_MANIFEST_DIR="manifests/g/gorodulin/prj/$VERSION"
+for f in "$WINGET_VERSION" "$WINGET_INSTALLER" "$WINGET_LOCALE"; do
+    CONTENT="$(base64 < "$WINGET_DIR/$f")"
+    gh api "repos/$WINGET_FORK/contents/$WINGET_MANIFEST_DIR/$f" -X PUT \
+        -f message="Add gorodulin.prj v$VERSION" \
+        -f content="$CONTENT" \
+        -f branch="$WINGET_BRANCH" --silent \
+        || error "Failed to upload $f"
+done
+info "Uploaded manifests to $WINGET_FORK"
+
+WINGET_PR_URL="$(gh api "repos/$WINGET_UPSTREAM/pulls" -X POST \
+    -f title="New version: gorodulin.prj v$VERSION" \
+    -f head="gorodulin:$WINGET_BRANCH" \
+    -f base="master" \
+    -f body="Automated submission from release script." \
+    --jq '.html_url')" \
+    || error "Failed to create WinGet PR"
+info "WinGet PR: $WINGET_PR_URL"
+
+echo ""
+
+# ── Step 17: Summary ─────────────────────────────────────────────
 
 echo "Done! Release $TAG is ready and pushed."
 echo ""
@@ -266,3 +357,5 @@ echo ""
 echo "  2. Submit MacPorts Portfile:"
 echo "     cp $PORTFILE <macports-ports-fork>/devel/prj/Portfile"
 echo "     # Open PR to macports/macports-ports"
+echo ""
+echo "  3. Monitor WinGet PR: $WINGET_PR_URL"
