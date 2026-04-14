@@ -36,6 +36,15 @@ Shell completions for bash, zsh, and fish are installed automatically.
 Try `prj lis<Tab>` to verify. If autocompletion doesn't work, see
 [Homebrew Shell Completion](https://docs.brew.sh/Shell-Completion).
 
+### Windows (WinGet)
+
+```
+winget install gorodulin.prj
+```
+
+Requires Windows 10 1809 or later. For manual PowerShell install or
+more details, see [docs/windows-distribution.md](docs/windows-distribution.md).
+
 ### From source
 
 Requires Go 1.19+:
