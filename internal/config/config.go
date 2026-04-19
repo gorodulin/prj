@@ -27,6 +27,7 @@ const (
 	DefaultLinkTitleFormat = "{{.Title}}"
 	DefaultProjectIDType   = "ULID"
 	DefaultProjectIDPrefix = "prj"
+	DefaultColor           = "auto"
 )
 
 
@@ -35,6 +36,9 @@ var ValidLinkKinds = platform.SupportedLinkTypes()
 
 // ValidProjectIDTypes lists recognized values for ProjectIDType.
 var ValidProjectIDTypes = []string{project.FormatAYMDb, project.FormatUUIDv7, project.FormatULID, project.FormatKSUID}
+
+// ValidColorModes lists recognized values for Color.
+var ValidColorModes = []string{"auto", "always", "never"}
 
 // Config holds the prj configuration persisted as JSON.
 type Config struct {
@@ -52,6 +56,7 @@ type Config struct {
 	MachineName     string `json:"machine_name,omitempty"`
 	MachineID       string `json:"machine_id,omitempty"`
 	RetentionDays   int    `json:"retention_days,omitempty"`
+	Color             string `json:"color,omitempty"`
 
 	explicitKeys map[string]bool // keys present in the JSON file (not defaults)
 }
@@ -123,6 +128,11 @@ func Load(path string) (Config, error) {
 		cfg.ProjectIDPrefix = DefaultProjectIDPrefix
 	}
 
+	// Default color mode (auto-detect TTY).
+	if cfg.Color == "" {
+		cfg.Color = DefaultColor
+	}
+
 	if err := cfg.Validate(); err != nil {
 		return Config{}, fmt.Errorf("invalid config: %w", err)
 	}
@@ -148,6 +158,11 @@ func (c Config) Validate() error {
 	// Enum: project_id_type
 	if c.ProjectIDType != "" && !containsStr(ValidProjectIDTypes, c.ProjectIDType) {
 		return fmt.Errorf("project_id_type %q is not recognized (use %s)", c.ProjectIDType, JoinQuoted(ValidProjectIDTypes))
+	}
+
+	// Enum: color
+	if c.Color != "" && !containsStr(ValidColorModes, c.Color) {
+		return fmt.Errorf("color %q is not recognized (use %s)", c.Color, JoinQuoted(ValidColorModes))
 	}
 
 	// Paths must be absolute if set.

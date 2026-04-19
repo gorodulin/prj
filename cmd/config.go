@@ -93,7 +93,7 @@ func runConfigList(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("load config: %w", err)
 	}
 
-	color := format.IsTTY(os.Stdout)
+	color := format.ResolveColor(os.Stdout, noColor, cfg.Color)
 
 	// Find max key length for alignment.
 	maxLen := 0

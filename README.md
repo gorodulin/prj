@@ -341,7 +341,8 @@ enable additional features.
   "project_id_type": "aYYYYMMDDb",
   "project_id_prefix": "prj",
   "machine_name": "Newton",
-  "machine_id": "newton"
+  "machine_id": "newton",
+  "color": "auto"
 }
 ```
 
@@ -359,6 +360,7 @@ enable additional features.
 | `link_title_format` | Go template for link names. Fields: `{{.Title}}`, `{{.ID}}`. Supports same functions as `list_format` (`date`, `upper`, `lower`, etc.). Old `{token}` syntax is auto-migrated |
 | `list_format` | Default output format for `prj list`: `json`, `jsonl`, or a Go template (e.g. `"{{.ID}}\t{{.Title}}"`). Overridden by `--format` flag |
 | `link_sink_name` | Fallback folder name for projects that match no tag-based folder (empty = disabled) |
+| `color` | Colored output mode: `auto` (default, on when stdout is a TTY), `always`, or `never`. The global `--no-color` flag overrides this |
 
 ## Metadata
 

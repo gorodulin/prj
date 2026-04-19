@@ -16,8 +16,8 @@ func TestFieldsCount(t *testing.T) {
 	if len(Fields) > numStructFields {
 		t.Errorf("Fields has %d entries, but Config only has %d fields", len(Fields), numStructFields)
 	}
-	if len(Fields) != 13 {
-		t.Errorf("Fields has %d entries, want 13", len(Fields))
+	if len(Fields) != 14 {
+		t.Errorf("Fields has %d entries, want 14", len(Fields))
 	}
 }
 

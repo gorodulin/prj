@@ -21,6 +21,38 @@ func TestIsTTY(t *testing.T) {
 	}
 }
 
+func TestResolveColor(t *testing.T) {
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatalf("os.Pipe: %v", err)
+	}
+	defer r.Close()
+	defer w.Close()
+
+	tests := []struct {
+		name     string
+		noColor  bool
+		cfgColor string
+		want     bool
+	}{
+		{"noColor flag overrides always", true, ColorAlways, false},
+		{"noColor flag overrides auto", true, ColorAuto, false},
+		{"config always forces on", false, ColorAlways, true},
+		{"config never forces off", false, ColorNever, false},
+		{"config auto falls through to IsTTY (pipe → off)", false, ColorAuto, false},
+		{"config empty falls through to IsTTY (pipe → off)", false, "", false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := ResolveColor(w, tt.noColor, tt.cfgColor)
+			if got != tt.want {
+				t.Errorf("ResolveColor(pipe, noColor=%v, cfg=%q) = %v, want %v",
+					tt.noColor, tt.cfgColor, got, tt.want)
+			}
+		})
+	}
+}
+
 func TestFuncMapColorEnabled(t *testing.T) {
 	fm := FuncMap(true)
 	tests := []struct {

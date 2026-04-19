@@ -9,13 +9,29 @@ import (
 	"github.com/gorodulin/prj/internal/project"
 )
 
-// IsTTY reports whether f is a terminal (character device).
-func IsTTY(f *os.File) bool {
-	info, err := f.Stat()
-	if err != nil {
+// Color-mode values for the "color" config field.
+const (
+	ColorAuto   = "auto"
+	ColorAlways = "always"
+	ColorNever  = "never"
+)
+
+// ValidColorModes lists recognized values for the "color" config field.
+var ValidColorModes = []string{ColorAuto, ColorAlways, ColorNever}
+
+// ResolveColor decides whether ANSI output should be emitted on f.
+// Precedence: --no-color flag → config "always"/"never" → IsTTY auto-detect.
+func ResolveColor(f *os.File, noColorFlag bool, cfgColor string) bool {
+	if noColorFlag {
 		return false
 	}
-	return info.Mode()&os.ModeCharDevice != 0
+	switch cfgColor {
+	case ColorAlways:
+		return true
+	case ColorNever:
+		return false
+	}
+	return IsTTY(f)
 }
 
 // FuncMap returns template functions for string manipulation and color.

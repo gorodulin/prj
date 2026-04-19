@@ -95,7 +95,7 @@ func runList(cmd *cobra.Command, args []string) error {
 	}
 
 	opts := format.Options{
-		Color: format.IsTTY(os.Stdout),
+		Color: format.ResolveColor(os.Stdout, noColor, cfg.Color),
 	}
 
 	return format.Format(os.Stdout, projects, formatStr, opts)

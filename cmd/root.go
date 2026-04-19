@@ -10,7 +10,10 @@ import (
 // version is set via ldflags at build time.
 var version = "dev"
 
-var cfgFile string
+var (
+	cfgFile string
+	noColor bool
+)
 
 var rootCmd = &cobra.Command{
 	Use:   "prj",
@@ -27,6 +30,7 @@ func Execute() {
 
 func init() {
 	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default: $UserConfigDir/prj/config.json)")
+	rootCmd.PersistentFlags().BoolVar(&noColor, "no-color", false, "disable colored output")
 	rootCmd.Version = version
 	rootCmd.SilenceErrors = true
 	rootCmd.SilenceUsage = true

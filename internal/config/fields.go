@@ -94,6 +94,12 @@ var Fields = []Field{
 			return nil
 		},
 	},
+	{
+		// Keep Default in sync with config.DefaultColor.
+		Key: "color", Hint: "auto|always|never", Default: "auto",
+		Get: func(c *Config) string { return c.Color },
+		Set: func(c *Config, v string) error { c.Color = v; return nil },
+	},
 }
 
 // FieldByKey returns the field with the given JSON key name.
