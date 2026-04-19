@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.5.0] - 2026-04-19
+
+### Added
+- Global `--no-color` flag to disable colored output on any command
+- `color` config field: `auto` (default), `always`, or `never`
+
+### Fixed
+- ANSI escape codes rendered as literal text on Windows console (PowerShell
+  and cmd.exe). `IsTTY` now enables `ENABLE_VIRTUAL_TERMINAL_PROCESSING` on
+  modern Windows consoles, and correctly reports no-TTY on legacy conhost
+  and mintty/MSYS so no codes leak
+
 ## [0.4.1] - 2026-04-09
 
 ### Added
