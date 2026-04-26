@@ -4,26 +4,19 @@ How `prj` is distributed on Windows via WinGet, plus manual PowerShell fallback.
 
 ## Current status
 
-**First WinGet submission:** PR microsoft/winget-pkgs#357263, opened 2026-04-09.
-Submitted for v0.4.1 with both x64 and arm64 binaries.
+`gorodulin.prj` is live on WinGet. Users can install with
+`winget install gorodulin.prj`.
 
-Automated validation runs ~30 minutes after PR creation (YAML schema,
-installer URL reachability, SHA256 verification, malware scan). Human
-review follows — first submissions typically take 1-7 days.
+| Version | PR | Opened | Merged |
+|---------|----|--------|--------|
+| 0.4.1 (first submission) | [#357263](https://github.com/microsoft/winget-pkgs/pull/357263) | 2026-04-09 | 2026-04-14 |
+| 0.5.0 | [#362521](https://github.com/microsoft/winget-pkgs/pull/362521) | 2026-04-19 | 2026-04-19 (~2h) |
 
-**To check status:** `gh pr view 357263 --repo microsoft/winget-pkgs`
+The v0.5.0 PR was opened and merged automatically by `release.sh`,
+confirming the end-to-end automation works.
 
-**After merge:** verify with `winget search prj` and
-`winget install gorodulin.prj` on a Windows machine.
-
-## Next steps
-
-1. Confirm the PR passes validation and is merged.
-2. `release.sh` already generates WinGet manifests and submits a PR
-   automatically via `gh` API (added alongside this first submission).
-   Verify the automation works on the next release.
-3. After the first submission is accepted, subsequent version updates
-   should be reviewed faster (hours to 1-2 days).
+**To check the latest submission status:**
+`gh pr list --repo microsoft/winget-pkgs --search "gorodulin.prj" --state all`
 
 ## WinGet
 
@@ -66,9 +59,26 @@ Between releases, only version, URLs, and SHA256 hashes change.
 The `release.sh` script handles this automatically by patching the
 template files in `packaging/winget/` and submitting a PR via `gh` API.
 
+### Schema headers
+
+Every WinGet manifest file **must** start with a `yaml-language-server`
+schema comment on line 1. Without it, automated validation fails with
+"Schema header not found." The header tells the validator which schema
+to apply:
+
+| File | Header |
+|------|--------|
+| Version | `# yaml-language-server: $schema=https://aka.ms/winget-manifest.version.1.9.0.schema.json` |
+| Installer | `# yaml-language-server: $schema=https://aka.ms/winget-manifest.installer.1.9.0.schema.json` |
+| Locale | `# yaml-language-server: $schema=https://aka.ms/winget-manifest.defaultLocale.1.9.0.schema.json` |
+
+The `1.9.0` in the URL matches `ManifestVersion` in the file. If you
+bump `ManifestVersion`, update the schema URL to match.
+
 #### Version manifest (`gorodulin.prj.yaml`)
 
 ```yaml
+# yaml-language-server: $schema=https://aka.ms/winget-manifest.version.1.9.0.schema.json
 PackageIdentifier: gorodulin.prj
 PackageVersion: 0.4.1
 DefaultLocale: en-US
@@ -79,6 +89,7 @@ ManifestVersion: 1.9.0
 #### Installer manifest (`gorodulin.prj.installer.yaml`)
 
 ```yaml
+# yaml-language-server: $schema=https://aka.ms/winget-manifest.installer.1.9.0.schema.json
 PackageIdentifier: gorodulin.prj
 PackageVersion: 0.4.1
 InstallerType: portable
@@ -98,6 +109,7 @@ ManifestVersion: 1.9.0
 #### Locale manifest (`gorodulin.prj.locale.en-US.yaml`)
 
 ```yaml
+# yaml-language-server: $schema=https://aka.ms/winget-manifest.defaultLocale.1.9.0.schema.json
 PackageIdentifier: gorodulin.prj
 PackageVersion: 0.4.1
 PackageLocale: en-US
@@ -137,6 +149,7 @@ Submissions go through `microsoft/winget-pkgs` as PRs:
 - Version updates: hours to 1-2 days
 
 **Common rejection reasons:**
+- Missing schema header comment on line 1 ("Schema header not found")
 - SHA256 hash mismatch (if release asset was re-uploaded after manifest creation)
 - URL returns 404
 - Missing or inaccurate metadata
