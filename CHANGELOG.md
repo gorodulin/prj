@@ -5,6 +5,34 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.6.0] - 2026-04-26
+
+### Added
+- Windows: NTFS directory junctions (`link_kind: junction`), now the default
+  on Windows. Junctions need no Developer Mode or admin privileges, so
+  `prj link` works out of the box on a fresh Windows install
+- `platform.DefaultLinkKind()` selects the OS-appropriate default
+  (`junction` on Windows, `symlink` elsewhere) when `link_kind` is unset
+- `--kind junction` flag value, validated per platform
+
+### Changed
+- Generalized the existing macOS "fall back to symlink when target missing"
+  rule into a single `effectiveLinkKind` function that also handles the
+  Windows junction cross-volume case (junctions cannot span drives, so
+  cross-volume links transparently fall back to symlink)
+- Reconciler tracks link kind as a string (`Kind`) instead of a boolean
+  (`IsSymlink`), so symlink ↔ junction migration on Windows is detected
+  and resolved via the existing `ActionReplace` path
+- `platform.ResolveLink` now reports the resolved link kind, eliminating
+  the duplicated readlink/alias ladder in `scan.go`
+
+### Fixed
+- Windows `ERROR_PRIVILEGE_NOT_HELD` (1314) on symlink creation now
+  surfaces as a contextual error that recommends
+  `prj config set link_kind junction` (or, when junction was wanted but
+  the target is on a different volume, points at the volume mismatch)
+  instead of the raw OS error
+
 ## [0.5.0] - 2026-04-19
 
 ### Added
