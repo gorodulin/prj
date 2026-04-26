@@ -29,12 +29,15 @@ func TestResolveLinkSymlink(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	got, err := ResolveLink(link)
+	got, kind, err := ResolveLink(link)
 	if err != nil {
 		t.Fatalf("ResolveLink: %v", err)
 	}
 	if got != target {
-		t.Errorf("ResolveLink = %q, want %q", got, target)
+		t.Errorf("ResolveLink target = %q, want %q", got, target)
+	}
+	if kind != "symlink" {
+		t.Errorf("ResolveLink kind = %q, want %q", kind, "symlink")
 	}
 }
 
@@ -43,7 +46,7 @@ func TestResolveLinkNotALink(t *testing.T) {
 	regular := filepath.Join(dir, "regular")
 	os.WriteFile(regular, []byte("hello"), 0644)
 
-	_, err := ResolveLink(regular)
+	_, _, err := ResolveLink(regular)
 	if err == nil {
 		t.Fatal("expected error for non-link, got nil")
 	}
@@ -104,12 +107,15 @@ func TestResolveLinkFinderAlias(t *testing.T) {
 	}
 
 	// ResolveLink should fall back to alias resolution.
-	resolved, err := ResolveLink(alias)
+	resolved, kind, err := ResolveLink(alias)
 	if err != nil {
 		t.Fatalf("ResolveLink: %v", err)
 	}
 	if realPath(t, resolved) != realPath(t, target) {
-		t.Errorf("ResolveLink = %q, want %q", resolved, target)
+		t.Errorf("ResolveLink target = %q, want %q", resolved, target)
+	}
+	if kind != "finder-alias" {
+		t.Errorf("ResolveLink kind = %q, want %q", kind, "finder-alias")
 	}
 }
 

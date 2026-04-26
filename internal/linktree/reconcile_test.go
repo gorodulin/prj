@@ -25,7 +25,7 @@ func TestReconcile(t *testing.T) {
 			"/links/Work/ProjA": {Target: "/projects/p20260101a", ID: "p20260101a"},
 		}
 		actual := []ManagedLink{
-			{Path: "/links/Work/ProjA", ProjectID: "p20260101a", IsSymlink: true},
+			{Path: "/links/Work/ProjA", ProjectID: "p20260101a", Kind: "symlink"},
 		}
 		actions := Reconcile(desired, actual, "symlink", "")
 
@@ -40,7 +40,7 @@ func TestReconcile(t *testing.T) {
 
 	t.Run("stale link removed", func(t *testing.T) {
 		actual := []ManagedLink{
-			{Path: "/links/Work/OldProject", ProjectID: "p20260101a", IsSymlink: true},
+			{Path: "/links/Work/OldProject", ProjectID: "p20260101a", Kind: "symlink"},
 		}
 		actions := Reconcile(nil, actual, "symlink", "")
 
@@ -58,7 +58,7 @@ func TestReconcile(t *testing.T) {
 			"/links/Code/ProjA": {Target: "/projects/p20260101a", ID: "p20260101a"},
 		}
 		actual := []ManagedLink{
-			{Path: "/links/Work/ProjA", ProjectID: "p20260101a", IsSymlink: true},
+			{Path: "/links/Work/ProjA", ProjectID: "p20260101a", Kind: "symlink"},
 		}
 		actions := Reconcile(desired, actual, "symlink", "")
 
@@ -77,7 +77,7 @@ func TestReconcile(t *testing.T) {
 			"/links/Work/ProjA": {Target: "/projects/p20260101a", ID: "p20260101a"},
 		}
 		actual := []ManagedLink{
-			{Path: "/links/Work/ProjA", ProjectID: "p20260101a", IsSymlink: false}, // alias
+			{Path: "/links/Work/ProjA", ProjectID: "p20260101a", Kind: "finder-alias"},
 		}
 		actions := Reconcile(desired, actual, "symlink", "") // want symlink
 
@@ -94,7 +94,7 @@ func TestReconcile(t *testing.T) {
 			"/links/Work/ProjA": {Target: "/nonexistent/p20260101a", ID: "p20260101a"},
 		}
 		actual := []ManagedLink{
-			{Path: "/links/Work/ProjA", ProjectID: "p20260101a", IsSymlink: true},
+			{Path: "/links/Work/ProjA", ProjectID: "p20260101a", Kind: "symlink"},
 		}
 		actions := Reconcile(desired, actual, "finder-alias", "")
 
@@ -116,7 +116,7 @@ func TestReconcile(t *testing.T) {
 			"/links/Work/ProjA": {Target: target, ID: "p20260101a"},
 		}
 		actual := []ManagedLink{
-			{Path: "/links/Work/ProjA", ProjectID: "p20260101a", IsSymlink: true},
+			{Path: "/links/Work/ProjA", ProjectID: "p20260101a", Kind: "symlink"},
 		}
 		actions := Reconcile(desired, actual, "finder-alias", "")
 
@@ -175,7 +175,7 @@ func TestReconcile(t *testing.T) {
 			nfc: {Target: "/projects/p20260101a", ID: "p20260101a"},
 		}
 		actual := []ManagedLink{
-			{Path: nfd, ProjectID: "p20260101a", IsSymlink: true},
+			{Path: nfd, ProjectID: "p20260101a", Kind: "symlink"},
 		}
 
 		actions := Reconcile(desired, actual, "symlink", "")
@@ -201,7 +201,7 @@ func TestReconcile(t *testing.T) {
 			nfc: {Target: target, ID: "p20260101a"},
 		}
 		actual := []ManagedLink{
-			{Path: nfd, ProjectID: "p20260101a", IsSymlink: true}, // have symlink
+			{Path: nfd, ProjectID: "p20260101a", Kind: "symlink"}, // have symlink
 		}
 
 		actions := Reconcile(desired, actual, "finder-alias", "") // want alias
@@ -219,11 +219,82 @@ func TestReconcile(t *testing.T) {
 		}
 	})
 
+	t.Run("symlink stays put when junction wanted but target missing", func(t *testing.T) {
+		// effectiveLinkKind falls back to symlink when target is missing,
+		// regardless of whether the user wants junction or finder-alias.
+		desired := map[string]DesiredLink{
+			"/links/Work/ProjA": {Target: "/nonexistent/p20260101a", ID: "p20260101a"},
+		}
+		actual := []ManagedLink{
+			{Path: "/links/Work/ProjA", ProjectID: "p20260101a", Kind: "symlink"},
+		}
+		actions := Reconcile(desired, actual, "junction", "")
+
+		if len(filterActions(actions, ActionSkip)) != 1 {
+			t.Errorf("expected 1 skip, got actions: %v", actions)
+		}
+	})
+
+	t.Run("existing junction skipped when junction wanted (idempotent)", func(t *testing.T) {
+		base := t.TempDir()
+		target := filepath.Join(base, "p20260101a")
+		os.Mkdir(target, 0755)
+
+		desired := map[string]DesiredLink{
+			"/links/Work/ProjA": {Target: target, ID: "p20260101a"},
+		}
+		actual := []ManagedLink{
+			{Path: "/links/Work/ProjA", ProjectID: "p20260101a", Kind: "junction"},
+		}
+		actions := Reconcile(desired, actual, "junction", "")
+
+		if len(filterActions(actions, ActionSkip)) != 1 {
+			t.Errorf("expected 1 skip (idempotent), got actions: %v", actions)
+		}
+	})
+
+	t.Run("symlink replaced with junction when wanted and feasible", func(t *testing.T) {
+		base := t.TempDir()
+		target := filepath.Join(base, "p20260101a")
+		os.Mkdir(target, 0755)
+		linkPath := filepath.Join(base, "link") // same volume as target
+
+		desired := map[string]DesiredLink{
+			linkPath: {Target: target, ID: "p20260101a"},
+		}
+		actual := []ManagedLink{
+			{Path: linkPath, ProjectID: "p20260101a", Kind: "symlink"},
+		}
+		actions := Reconcile(desired, actual, "junction", "")
+
+		if len(filterActions(actions, ActionReplace)) != 1 {
+			t.Errorf("expected 1 replace (symlink → junction), got actions: %v", actions)
+		}
+	})
+
+	t.Run("junction replaced with symlink when symlink wanted", func(t *testing.T) {
+		base := t.TempDir()
+		target := filepath.Join(base, "p20260101a")
+		os.Mkdir(target, 0755)
+
+		desired := map[string]DesiredLink{
+			"/links/Work/ProjA": {Target: target, ID: "p20260101a"},
+		}
+		actual := []ManagedLink{
+			{Path: "/links/Work/ProjA", ProjectID: "p20260101a", Kind: "junction"},
+		}
+		actions := Reconcile(desired, actual, "symlink", "")
+
+		if len(filterActions(actions, ActionReplace)) != 1 {
+			t.Errorf("expected 1 replace (junction → symlink), got actions: %v", actions)
+		}
+	})
+
 	t.Run("stale link with NFD path removed", func(t *testing.T) {
 		nfd := "/links/work/p20260101a \xd0\xb8\xcc\x86"
 
 		actual := []ManagedLink{
-			{Path: nfd, ProjectID: "p20260101a", IsSymlink: true},
+			{Path: nfd, ProjectID: "p20260101a", Kind: "symlink"},
 		}
 
 		actions := Reconcile(nil, actual, "symlink", "")

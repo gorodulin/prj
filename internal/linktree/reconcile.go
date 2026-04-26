@@ -1,10 +1,12 @@
 package linktree
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
+	"syscall"
 
 	"github.com/gorodulin/prj/internal/config"
 	"github.com/gorodulin/prj/internal/platform"
@@ -40,7 +42,7 @@ type DesiredLink struct {
 
 // Reconcile computes actions to sync desired state against actual.
 // desired maps full link path → DesiredLink.
-// linkKind is "symlink" or "finder-alias".
+// linkKind is one of "symlink", "finder-alias", or "junction".
 // projectsFolder is used to detect foreign project links for automatic
 // conflict resolution. Pass "" to disable this behavior.
 func Reconcile(desired map[string]DesiredLink, actual []ManagedLink, linkKind, projectsFolder string) []Action {
@@ -111,28 +113,22 @@ func Reconcile(desired map[string]DesiredLink, actual []ManagedLink, linkKind, p
 		}
 
 		// Link exists (exact path or folder+ID match). Check if it needs updating.
-		// When target doesn't exist, symlink is the only viable kind
-		// (Finder aliases require the target for bookmark creation).
-		// Accept symlink as correct; upgrade to alias when target syncs.
-		wantSymlink := linkKind == config.LinkKindSymlink
-		if !wantSymlink {
-			if _, err := os.Stat(dl.Target); err != nil {
-				wantSymlink = true
-			}
-		}
-		if ml.ProjectID == dl.ID && ml.IsSymlink == wantSymlink && !renamed {
+		// effectiveLinkKind handles fallbacks: finder-alias and junction need the
+		// target to exist; junction additionally requires same-volume.
+		effectiveKind := effectiveLinkKind(linkKind, dl.Target, desiredPath)
+		if ml.ProjectID == dl.ID && ml.Kind == effectiveKind && !renamed {
 			actions = append(actions, Action{
 				Kind: ActionSkip,
 				Path: desiredPath,
 				ID:   dl.ID,
 			})
-		} else if ml.ProjectID == dl.ID && (ml.IsSymlink != wantSymlink || renamed) {
+		} else if ml.ProjectID == dl.ID && (ml.Kind != effectiveKind || renamed) {
 			// Right target, but wrong kind or wrong name — replace.
 			detail := ""
 			if renamed {
 				detail = "renamed"
 			} else {
-				detail = fmt.Sprintf("wrong kind: want %s", linkKind)
+				detail = fmt.Sprintf("wrong kind: want %s", effectiveKind)
 			}
 			actions = append(actions, Action{
 				Kind:    ActionReplace,
@@ -256,21 +252,59 @@ func Apply(actions []Action, linkKind string) error {
 	return nil
 }
 
+// effectiveLinkKind reports the kind that will actually be created at linkPath
+// given the configured want and the target's state. The rule is single: if the
+// wanted kind is impossible, fall back to symlink.
+//   - finder-alias and junction both need the target to exist.
+//   - junction additionally requires linkPath and target to be on the same volume.
+func effectiveLinkKind(want, target, linkPath string) string {
+	if want == config.LinkKindSymlink {
+		return want
+	}
+	if _, err := os.Stat(target); err != nil {
+		return config.LinkKindSymlink
+	}
+	if want == config.LinkKindJunction &&
+		filepath.VolumeName(linkPath) != filepath.VolumeName(target) {
+		return config.LinkKindSymlink
+	}
+	return want
+}
+
 func createLink(path, target, linkKind string) error {
 	// Ensure parent directory exists.
 	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
 		return fmt.Errorf("create parent dir: %w", err)
 	}
 
-	switch linkKind {
+	switch effectiveLinkKind(linkKind, target, path) {
 	case config.LinkKindFinderAlias:
-		// Finder aliases require the target to exist (bookmark data).
-		// Fall back to symlink for missing targets (e.g. metadata-only projects).
-		if _, err := os.Stat(target); err != nil {
-			return os.Symlink(target, path)
-		}
 		return platform.CreateAlias(path, target)
+	case config.LinkKindJunction:
+		return platform.CreateJunction(path, target)
 	default:
-		return os.Symlink(target, path)
+		return wrapSymlinkError(os.Symlink(target, path), path, target, linkKind)
 	}
 }
+
+// wrapSymlinkError converts a Windows ERROR_PRIVILEGE_NOT_HELD into a typed
+// SymlinkPrivilegeError so the cmd layer can format a tailored message. The
+// FellBackFromJunction flag captures whether the caller actually wanted a
+// junction but had to fall back (cross-volume case).
+func wrapSymlinkError(err error, path, target, configuredKind string) error {
+	if err == nil {
+		return nil
+	}
+	if !errors.Is(err, syscall.Errno(privilegeNotHeld)) {
+		return err
+	}
+	return &platform.SymlinkPrivilegeError{
+		LinkPath:             path,
+		Target:               target,
+		FellBackFromJunction: configuredKind == config.LinkKindJunction,
+	}
+}
+
+// privilegeNotHeld is Windows ERROR_PRIVILEGE_NOT_HELD. Defined as a constant
+// rather than imported from x/sys/windows to avoid a dependency for one value.
+const privilegeNotHeld = 1314

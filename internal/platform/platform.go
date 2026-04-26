@@ -4,8 +4,9 @@
 // using build tags. The compiler includes exactly one per target OS.
 //
 // Functions provided by platform files:
-//   - ResolveLink(path string) (string, error)
+//   - ResolveLink(path string) (target, kind string, err error)
 //   - SupportedLinkTypes() []string
+//   - DefaultLinkKind() string
 //
 // Functions provided by alias files (cgo on macOS, stub elsewhere):
 //   - CreateAlias(aliasPath, targetPath string) error

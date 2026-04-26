@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -25,7 +26,7 @@ func init() {
 	rootCmd.AddCommand(linkCmd)
 	linkCmd.Flags().Bool("dry-run", false, "show changes without applying")
 	linkCmd.Flags().Bool("verbose", false, "include unchanged links in output")
-	linkCmd.Flags().String("kind", "", "override link kind (symlink, finder-alias)")
+	linkCmd.Flags().String("kind", "", "override link kind (symlink, finder-alias, junction)")
 	linkCmd.Flags().Bool("warn-unplaced", false, "list projects with no placement")
 	linkCmd.Flags().BoolP("all", "a", false, "include metadata-only projects (not present locally)")
 }
@@ -50,7 +51,7 @@ func runLink(cmd *cobra.Command, args []string) error {
 		linkKind = k
 	}
 	if linkKind == "" {
-		linkKind = config.LinkKindSymlink
+		linkKind = platform.DefaultLinkKind()
 	}
 	if !config.IsValidLinkKind(linkKind) {
 		return fmt.Errorf("unknown link kind %q (use %s)", linkKind, config.JoinQuoted(config.ValidLinkKinds))
@@ -180,6 +181,10 @@ func runLink(cmd *cobra.Command, args []string) error {
 	}
 
 	if err := linktree.Apply(actions, linkKind); err != nil {
+		var spe *platform.SymlinkPrivilegeError
+		if errors.As(err, &spe) {
+			return formatPrivilegeError(spe)
+		}
 		return fmt.Errorf("apply link changes: %w", err)
 	}
 
@@ -281,6 +286,35 @@ func updateLinkComments(actions []linktree.Action, commentByID map[string][]byte
 	if err := platform.SetFinderComments(batch); err != nil {
 		fmt.Fprintf(os.Stderr, "Warning: %v\n", err)
 	}
+}
+
+// formatPrivilegeError renders a Windows ERROR_PRIVILEGE_NOT_HELD with
+// guidance tailored to the situation. SymlinkPrivilegeError tells us
+// whether we fell back from a junction (cross-volume case) or whether
+// symlink was the user's explicit choice.
+func formatPrivilegeError(e *platform.SymlinkPrivilegeError) error {
+	if e.FellBackFromJunction {
+		return fmt.Errorf(
+			"cannot create symlink to %s at %s.\n"+
+				"Junctions can't span volumes — links_folder is on %s while the project is on %s — "+
+				"and symlinks need Developer Mode or admin privileges on Windows.\n"+
+				"Options:\n"+
+				"  (a) put links_folder on the same volume as your projects\n"+
+				"  (b) enable Developer Mode (Settings → Privacy & security → For developers)\n"+
+				"  (c) run from an admin shell",
+			e.Target, e.LinkPath,
+			filepath.VolumeName(e.LinkPath), filepath.VolumeName(e.Target),
+		)
+	}
+	return fmt.Errorf(
+		"cannot create symlink at %s.\n"+
+			"Symlinks need Developer Mode or admin privileges on Windows.\n"+
+			"Options:\n"+
+			"  (a) switch to junctions: prj config set link_kind junction\n"+
+			"  (b) enable Developer Mode (Settings → Privacy & security → For developers)\n"+
+			"  (c) run from an admin shell",
+		e.LinkPath,
+	)
 }
 
 func printSummary(c actionCounts, dryRun bool) {

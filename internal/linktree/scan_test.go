@@ -38,8 +38,8 @@ func TestScanManagedLinks(t *testing.T) {
 		if managed[0].ProjectID != "p20260101a" {
 			t.Errorf("ProjectID = %q, want %q", managed[0].ProjectID, "p20260101a")
 		}
-		if !managed[0].IsSymlink {
-			t.Error("expected IsSymlink = true")
+		if managed[0].Kind != "symlink" {
+			t.Errorf("Kind = %q, want %q", managed[0].Kind, "symlink")
 		}
 	})
 

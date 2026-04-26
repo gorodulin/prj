@@ -19,6 +19,7 @@ const configFileName = "config.json"
 const (
 	LinkKindSymlink     = "symlink"
 	LinkKindFinderAlias = "finder-alias"
+	LinkKindJunction    = "junction"
 )
 
 // Default values for optional config fields.

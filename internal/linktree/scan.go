@@ -13,7 +13,7 @@ import (
 type ManagedLink struct {
 	Path      string // full path to the link
 	ProjectID string // extracted from resolved target
-	IsSymlink bool   // true = symlink, false = alias/bookmark
+	Kind      string // "symlink", "finder-alias", or "junction"
 }
 
 // ScanManagedLinks walks the link tree and returns all links whose target
@@ -62,29 +62,23 @@ func ScanManagedLinks(linksRoot, projectsFolder, idFormat, idPrefix, filterID st
 	return managed, nil
 }
 
-// resolveTarget reads the target of a symlink or alias at path.
-// Returns the resolved absolute path, whether it was a symlink, and success.
-// Tries symlink first (fast); falls back to alias/bookmark resolution.
-func resolveTarget(path string) (target string, isSymlink bool, ok bool) {
-	target, err := os.Readlink(path)
-	if err == nil {
-		if !filepath.IsAbs(target) {
-			target = filepath.Join(filepath.Dir(path), target)
-		}
-		return filepath.Clean(target), true, true
-	}
-
-	target, err = platform.ResolveAlias(path)
+// resolveTarget reads the target of any kind of managed link at path.
+// Returns the resolved absolute path, the link kind, and success.
+func resolveTarget(path string) (target, kind string, ok bool) {
+	target, kind, err := platform.ResolveLink(path)
 	if err != nil {
-		return "", false, false
+		return "", "", false
 	}
-	return target, false, true
+	if !filepath.IsAbs(target) {
+		target = filepath.Join(filepath.Dir(path), target)
+	}
+	return filepath.Clean(target), kind, true
 }
 
-// probeLink checks if path is a managed link (symlink or alias pointing
-// into projectsFolder). Returns the ManagedLink and true if managed.
+// probeLink checks if path is a managed link pointing into projectsFolder.
+// Returns the ManagedLink and true if managed.
 func probeLink(path, projectsFolder, idFormat, idPrefix string) (ManagedLink, bool) {
-	target, isSymlink, ok := resolveTarget(path)
+	target, kind, ok := resolveTarget(path)
 	if !ok {
 		return ManagedLink{}, false
 	}
@@ -92,7 +86,7 @@ func probeLink(path, projectsFolder, idFormat, idPrefix string) (ManagedLink, bo
 	if !ok {
 		return ManagedLink{}, false
 	}
-	return ManagedLink{Path: path, ProjectID: id, IsSymlink: isSymlink}, true
+	return ManagedLink{Path: path, ProjectID: id, Kind: kind}, true
 }
 
 // extractProjectID checks whether target is directly inside projectsFolder
