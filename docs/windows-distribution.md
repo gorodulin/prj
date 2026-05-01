@@ -11,6 +11,7 @@ How `prj` is distributed on Windows via WinGet, plus manual PowerShell fallback.
 |---------|----|--------|--------|
 | 0.4.1 (first submission) | [#357263](https://github.com/microsoft/winget-pkgs/pull/357263) | 2026-04-09 | 2026-04-14 |
 | 0.5.0 | [#362521](https://github.com/microsoft/winget-pkgs/pull/362521) | 2026-04-19 | 2026-04-19 (~2h) |
+| 0.6.0 | [#365330](https://github.com/microsoft/winget-pkgs/pull/365330) | 2026-04-26 | _in review_ |
 
 The v0.5.0 PR was opened and merged automatically by `release.sh`,
 confirming the end-to-end automation works.
