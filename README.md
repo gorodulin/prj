@@ -63,19 +63,23 @@ make install
 
 ## Quick start
 
-1. Configure the projects folder:
-   ```bash
-   prj config set projects_folder /path/to/your/projects
-   ```
-
-2. Create your first project:
-   ```bash
-   prj new --title "My Project"
-   ```
-
-That's the minimum setup. To track titles and tags, configure metadata:
+Run the interactive setup wizard:
 
 ```bash
+prj init
+```
+
+It walks through machine identity, folders, and project ID format, and offers
+a native folder picker on macOS, Linux, and Windows. Then create a project:
+
+```bash
+prj new --title "My Project"
+```
+
+If you'd rather configure manually, set the keys directly:
+
+```bash
+prj config set projects_folder /path/to/your/projects
 prj config set metadata_folder /path/to/metadata
 prj config set machine_name "my-laptop"
 prj config set machine_id "$(uuidgen)"
@@ -353,7 +357,7 @@ enable additional features.
 | `project_id_type` | ID format for new projects: `ULID` (default), `UUIDv7`, `KSUID`, `aYYYYMMDDb`. See [Choosing a project ID format](#choosing-a-project-id-format) |
 | `project_id_prefix` | Prefix for `aYYYYMMDDb` IDs: 1-5 lowercase letters, optionally followed by `-` or `_` (default: `prj`). Ignored by other formats |
 | `machine_name` | Human-readable name for this machine (recorded in metadata) |
-| `machine_id` | Machine identifier (recorded in metadata) |
+| `machine_id` | Machine identifier (recorded in metadata). Up to 36 characters, `[a-zA-Z0-9_.-]` only |
 | `retention_days` | Automatically delete metadata entries older than N days. 0 = disabled (default) |
 | `links_folder` | Root of the folder tree for `prj link` |
 | `link_kind` | Link type: `symlink` (default) or `finder-alias` |

@@ -5,6 +5,27 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.7.0] - 2026-05-01
+
+### Added
+- `prj init` interactive setup wizard — walks through machine identity,
+  folders, and project ID format, with auto-detection of the dominant ID
+  format from existing project folders
+- Native folder picker integrated into the wizard: `osascript` on macOS,
+  `zenity`/`kdialog` on Linux, `FolderBrowserDialog` on Windows. Type `?`
+  at any folder prompt to browse
+- `machine_id` validation: max 36 characters, `[a-zA-Z0-9_.-]` only
+- `metadata_folder` and `projects_folder` collision check (must not be
+  the same path)
+
+### Fixed
+- Folder picker no longer hangs or appears on the wrong screen when the
+  wizard runs over SSH. A platform-native `guiAvailable()` predicate
+  gates the picker — `$DISPLAY`/`$WAYLAND_DISPLAY` on Linux (so `ssh -X`
+  keeps working), absence of `SSH_*` env vars on macOS and Windows
+- Folder picker falls back to the user's home directory when the
+  configured starting path no longer exists, instead of failing silently
+
 ## [0.6.0] - 2026-04-26
 
 ### Added
