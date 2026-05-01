@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	"github.com/gorodulin/prj/internal/platform"
@@ -40,6 +41,11 @@ var ValidProjectIDTypes = []string{project.FormatAYMDb, project.FormatUUIDv7, pr
 
 // ValidColorModes lists recognized values for Color.
 var ValidColorModes = []string{"auto", "always", "never"}
+
+// machine_id: at most UUID length, alphanumeric plus . _ -.
+const maxMachineIDLen = 36
+
+var validMachineID = regexp.MustCompile(`^[a-zA-Z0-9_.-]+$`)
 
 // Config holds the prj configuration persisted as JSON.
 type Config struct {
@@ -166,6 +172,16 @@ func (c Config) Validate() error {
 		return fmt.Errorf("color %q is not recognized (use %s)", c.Color, JoinQuoted(ValidColorModes))
 	}
 
+	// machine_id: bounded length, restricted charset.
+	if c.MachineID != "" {
+		if len(c.MachineID) > maxMachineIDLen {
+			return fmt.Errorf("machine_id must be at most %d characters (got %d)", maxMachineIDLen, len(c.MachineID))
+		}
+		if !validMachineID.MatchString(c.MachineID) {
+			return fmt.Errorf("machine_id may only contain letters, digits, dot, underscore, dash (got %q)", c.MachineID)
+		}
+	}
+
 	// Paths must be absolute if set.
 	for _, pf := range []struct{ name, value string }{
 		{"projects_folder", c.ProjectsFolder},
@@ -189,6 +205,11 @@ func (c Config) Validate() error {
 	if c.LinksFolder != "" && c.MetadataFolder != "" {
 		if c.LinksFolder == c.MetadataFolder {
 			return fmt.Errorf("links_folder and metadata_folder must not be the same path")
+		}
+	}
+	if c.MetadataFolder != "" && c.ProjectsFolder != "" {
+		if c.MetadataFolder == c.ProjectsFolder {
+			return fmt.Errorf("metadata_folder and projects_folder must not be the same path")
 		}
 	}
 

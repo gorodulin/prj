@@ -230,6 +230,48 @@ func TestValidate(t *testing.T) {
 				LinksFolder:    "/home/user/links",
 			},
 		},
+
+		// machine_id
+		{
+			name: "machine_id empty is ok",
+			cfg:  Config{},
+		},
+		{
+			name: "machine_id alphanumeric is ok",
+			cfg:  Config{MachineID: "abc123"},
+		},
+		{
+			name: "machine_id with dot dash underscore is ok",
+			cfg:  Config{MachineID: "host_a-1.local"},
+		},
+		{
+			name: "machine_id uuid is ok",
+			cfg:  Config{MachineID: "550e8400-e29b-41d4-a716-446655440000"},
+		},
+		{
+			name:    "machine_id too long rejected",
+			cfg:     Config{MachineID: "550e8400-e29b-41d4-a716-446655440000x"},
+			wantErr: true,
+			errMsg:  "machine_id",
+		},
+		{
+			name:    "machine_id space rejected",
+			cfg:     Config{MachineID: "host name"},
+			wantErr: true,
+			errMsg:  "machine_id",
+		},
+		{
+			name:    "machine_id slash rejected",
+			cfg:     Config{MachineID: "host/name"},
+			wantErr: true,
+			errMsg:  "machine_id",
+		},
+		{
+			name:    "machine_id at-sign rejected",
+			cfg:     Config{MachineID: "host@name"},
+			wantErr: true,
+			errMsg:  "machine_id",
+		},
 	}
 
 	for _, tt := range tests {
