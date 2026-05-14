@@ -1,8 +1,8 @@
 class Prj < Formula
   desc "Projector: project folder, metadata, and link manager"
   homepage "https://github.com/gorodulin/prj"
-  url "https://github.com/gorodulin/prj/archive/refs/tags/v0.7.0.tar.gz"
-  sha256 "4e84d363c13cff51323a835d664407f34ecd841bfcff419d84f02414e9397a76"
+  url "https://github.com/gorodulin/prj/archive/refs/tags/v0.8.0.tar.gz"
+  sha256 "c2b08819dc0f9f447f467076907b254da6c8fc6cd49233b680d4ac1d53b79c58"
   license "Apache-2.0"
 
   depends_on "go" => :build

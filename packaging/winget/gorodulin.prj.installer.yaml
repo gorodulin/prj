@@ -1,15 +1,15 @@
 # yaml-language-server: $schema=https://aka.ms/winget-manifest.installer.1.9.0.schema.json
 PackageIdentifier: gorodulin.prj
-PackageVersion: 0.7.0
+PackageVersion: 0.8.0
 InstallerType: portable
 Commands:
 - prj
 Installers:
 - Architecture: x64
-  InstallerUrl: https://github.com/gorodulin/prj/releases/download/v0.7.0/prj-windows-amd64.exe
-  InstallerSha256: 5CAF60197E5814E599EF70486EC9331E69F223BB993B4615507FA03755DAAAD1
+  InstallerUrl: https://github.com/gorodulin/prj/releases/download/v0.8.0/prj-windows-amd64.exe
+  InstallerSha256: 383135FD8BE45A24C8C2DA8B98E59781A793C034361F8D4C848EE7647086F79F
 - Architecture: arm64
-  InstallerUrl: https://github.com/gorodulin/prj/releases/download/v0.7.0/prj-windows-arm64.exe
-  InstallerSha256: A4A9DF67D772F58D0F4322FFDF641B83AEED417A4A70E0C08DBDA56E10677439
+  InstallerUrl: https://github.com/gorodulin/prj/releases/download/v0.8.0/prj-windows-arm64.exe
+  InstallerSha256: 22F815133927FF427166925E3D4B7C7F7C5A1160513773376B5DE05889CFAFFB
 ManifestType: installer
 ManifestVersion: 1.9.0
