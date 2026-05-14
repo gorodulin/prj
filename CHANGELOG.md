@@ -5,6 +5,49 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.8.0] - 2026-05-14
+
+### Added
+- `prj edit --dry-run` flag for previewing metadata changes without
+  writing. Output matches a real run except a `DRY RUN — no metadata
+  written` banner is printed to stderr. In `--json` mode the envelope
+  carries `"dry_run": true`.
+- `prj list --json` / `--jsonl` as shorthand for `--format json|jsonl`.
+  Mutually exclusive with each other and with `--format`.
+- `prj info` now accepts multiple project IDs. Human-mode bulk output
+  prints each project's block separated by a blank line; exit code is
+  `1` if any ID fails.
+- `prj info --jsonl` and `prj edit --jsonl` for line-oriented JSON
+  output (one project record per line; per-ID errors emit
+  `{"id":"…","error":{"code":"…","reason":"…"}}`). Mutually exclusive
+  with `--json`. In JSONL mode dry-run state is signaled only by the
+  stderr `DRY RUN` banner.
+- Shared `cmd/bulkids.go` plumbing for the JSON envelope and JSON Lines
+  output used by both `info` and `edit`.
+- `prj list --tags wip,cli` for filtering by tags with the same
+  comma-separated syntax used by `prj new` and `prj edit`.
+- `--tag` accepted as a deprecated alias for `--tags` on `prj new` and
+  `prj edit` (already canonical there as `--tags`), for cross-command
+  symmetry.
+
+### Changed (breaking)
+- `prj info --json` now emits an envelope
+  `{"error":…,"results":[…],"errors":[…]}` rather than a flat project
+  object. Single-ID consumers should read `.results[0]`.
+- `prj info` error output under `--json` now uses the structured
+  envelope (`error.code`, `error.reason`) instead of
+  `{"error":"<msg>"}`.
+- `prj list --tag` is no longer repeatable. The flag is now a
+  deprecated alias for `--tags` and accepts comma-separated values
+  (`--tags wip,cli`). Existing scripts using `--tag wip --tag cli` must
+  migrate to `--tags wip,cli`. Cobra prints a deprecation warning when
+  `--tag` is used.
+
+### Clarified
+- `prj edit` applies tag flags (`--tags`, `--add-tags`, `--remove-tags`)
+  to every ID when multiple are given. Only `--title` is rejected in
+  bulk mode.
+
 ## [0.7.0] - 2026-05-01
 
 ### Added

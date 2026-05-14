@@ -99,8 +99,16 @@ prj list --all              # include metadata-only projects (not present locall
 prj list --missing          # show only metadata-only projects
 prj list -f json            # JSON array
 prj list -f jsonl           # one JSON object per line
+prj list --json             # shorthand for -f json
+prj list --jsonl            # shorthand for -f jsonl
+prj list --tags wip,cli     # filter by tags (AND logic)
+prj list -q zfs             # filter by substring across ID, title, tags
 prj list | grep zfs         # search across titles and tags
 ```
+
+The legacy `--tag` flag remains as a deprecated alias for `--tags` for
+one release; it accepts the same comma-separated syntax and is no longer
+repeatable.
 
 #### Output formats
 
@@ -223,9 +231,9 @@ tags: [cli, golang]
 # My Project
 ```
 
-### `prj edit <project-id>`
+### `prj edit <project-id> [<project-id>...]`
 
-Edit project metadata (title and/or tags).
+Edit project metadata (title and/or tags). Accepts one or more IDs.
 
 ```bash
 prj edit prj20260402a --title "New Title"           # set title
@@ -233,12 +241,19 @@ prj edit prj20260402a --tags "cli,golang"           # replace all tags
 prj edit prj20260402a --add-tags "new-tag"          # add to existing tags
 prj edit prj20260402a --remove-tags "old-tag"       # remove specific tags
 prj edit prj20260402a --title "" --tags ""          # clear title and tags
-prj edit current --add-tags "wip"                 # edit project in cwd
+prj edit current --add-tags "wip"                   # edit project in cwd
+prj edit prj20260402a prj20260403b --add-tags wip   # bulk: same edit on many
+prj edit prj20260402a --add-tags wip --dry-run      # preview without writing
 ```
 
 `--tags` and `--add-tags`/`--remove-tags` are mutually exclusive.
+All tag operations (`--tags`, `--add-tags`, `--remove-tags`) apply to every ID
+when multiple are given; only `--title` is rejected in bulk mode.
+`current` is single-ID only. Duplicate IDs are deduped to one operation.
 
-Output: `<id><TAB><title>` (or just `<id>` if no title).
+Output: `<id><TAB><status><TAB><title>` per project (`status` is `updated`,
+`created`, or `unchanged`). Single-ID mode prints `<id><TAB><title>` for changes
+and `no changes` to stderr when nothing changed.
 
 Register a project that exists on another machine but not on this one:
 ```bash
@@ -247,6 +262,111 @@ prj edit prj20250101a --force --title "Remote Project" --tags "infra"
 
 `--force` creates metadata for a project even if its folder is not
 present locally. The ID must still be a valid project ID format.
+
+Pass `--dry-run` to compute what would change without writing metadata.
+Output is identical to a real run except a `DRY RUN — no metadata written`
+banner is printed to stderr first. In `--json` mode the envelope carries
+`"dry_run": true`.
+
+#### `--json` envelope
+
+Pass `--json` for a uniform JSON envelope on stdout. The shape is the same
+in all modes:
+
+```json
+{
+  "error": null,
+  "results": [
+    {
+      "id": "prj20260402a",
+      "status": "updated",
+      "title": "New Title",
+      "path": "/Users/.../prj20260402a",
+      "local": true,
+      "tags": ["cli", "golang"],
+      "tags_added": ["golang"],
+      "tags_removed": []
+    }
+  ],
+  "errors": []
+}
+```
+
+- `error` is `null` on success or a `{code, reason}` object for invocation
+  errors (e.g. `title_unsupported_in_bulk`, `flags_conflict`,
+  `no_flags_provided`, `config_load_failed`). When set, `results` and `errors`
+  are empty.
+- `results[]` holds one entry per processed ID.
+- `errors[]` holds per-ID failures (`invalid_id_format`, `unknown_id`,
+  `current_unsupported_in_bulk`, `metadata_io_failed`).
+- Exit code is `1` if `error` is set or `errors[]` is non-empty, else `0`.
+- Purge messages still go to stderr; the `no changes` stderr line is
+  suppressed (status `unchanged` conveys it).
+
+Pass `--jsonl` for line-oriented output: one JSON record per project on
+stdout, plus one `{"id":"…","error":{"code":"…","reason":"…"}}` line per
+per-ID failure. Top-level invocation errors collapse to a single error
+line. Mutually exclusive with `--json`. In `--jsonl` mode there is no
+envelope and no `dry_run` field; dry-run state is signaled only by the
+stderr `DRY RUN — no metadata written` banner.
+
+### `prj info <project-id> [<project-id>...]`
+
+Display project details. Accepts one or more IDs.
+
+```bash
+prj info prj20260402a                       # human-readable
+prj info prj20260402a prj20260403b          # multiple projects, blank-line separated
+prj info current                            # project in cwd (single-ID only)
+prj info prj20260402a --json                # JSON envelope
+prj info prj20260402a prj20260403b --jsonl  # one JSON object per line
+```
+
+Human-mode bulk output prints each project's block in order, separated by
+a blank line. Unknown IDs go to stderr; the command exits 1 on any
+per-ID failure (partial failure mirrors `prj edit`).
+
+#### `--json` envelope
+
+Pass `--json` for a uniform JSON envelope on stdout. The shape matches
+`prj edit --json`:
+
+```json
+{
+  "error": null,
+  "results": [
+    {
+      "id": "prj20260402a",
+      "title": "My Project",
+      "path": "/Users/.../prj20260402a",
+      "tags": ["cli", "golang"],
+      "local": true,
+      "has_readme": true,
+      "date": "2026-04-02"
+    }
+  ],
+  "errors": []
+}
+```
+
+- `error` is `null` on success or `{code, reason}` for invocation errors
+  (e.g. `config_load_failed`). When set, `results` and `errors` are empty.
+- `results[]` holds one entry per resolved ID. `date` is omitted when the
+  ID format has no embedded timestamp; `datetime_utc` is omitted for the
+  date-only `aYYYYMMDDb` format.
+- `errors[]` holds per-ID failures (`invalid_id_format`, `unknown_id`).
+- Exit code is `1` if `error` is set or `errors[]` is non-empty, else `0`.
+
+**Breaking change:** prior releases emitted a flat project object for
+single-ID `info --json`. Scripts that read it should now use
+`.results[0]`. Error responses also use the structured envelope
+(`error.code`, `error.reason`) instead of `{"error":"<msg>"}`.
+
+#### `--jsonl`
+
+Pass `--jsonl` for line-oriented output: one JSON record per project on
+stdout, plus one `{"id":"…","error":{"code":"…","reason":"…"}}` line per
+per-ID failure. Mutually exclusive with `--json`.
 
 ### `prj link [project-id]`
 

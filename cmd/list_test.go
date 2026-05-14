@@ -1,8 +1,15 @@
 package cmd
 
 import (
+	"io"
+	"os"
+	"path/filepath"
+	"strings"
 	"testing"
 
+	"github.com/spf13/pflag"
+
+	"github.com/gorodulin/prj/internal/config"
 	"github.com/gorodulin/prj/internal/project"
 )
 
@@ -67,6 +74,123 @@ func TestMatchesTags(t *testing.T) {
 	}
 }
 
+func newListTestConfig(t *testing.T) string {
+	t.Helper()
+	tmp := t.TempDir()
+	cfg := config.Config{
+		ProjectsFolder:  filepath.Join(tmp, "Projects"),
+		MetadataFolder:  filepath.Join(tmp, "Metadata"),
+		MetadataSuffix:  ".meta",
+		MachineID:       "test",
+		MachineName:     "test",
+		RetentionDays:   30,
+		ProjectIDType:   project.FormatAYMDb,
+		ProjectIDPrefix: "p",
+	}
+	if err := os.MkdirAll(cfg.ProjectsFolder, 0o755); err != nil {
+		t.Fatalf("mkdir Projects: %v", err)
+	}
+	if err := os.MkdirAll(cfg.MetadataFolder, 0o755); err != nil {
+		t.Fatalf("mkdir Metadata: %v", err)
+	}
+	for _, id := range []string{"p20260101a", "p20260102b"} {
+		if err := os.MkdirAll(filepath.Join(cfg.ProjectsFolder, id), 0o755); err != nil {
+			t.Fatalf("mkdir %s: %v", id, err)
+		}
+	}
+	cfgPath := filepath.Join(tmp, "config.json")
+	if err := config.Save(cfg, cfgPath); err != nil {
+		t.Fatalf("save config: %v", err)
+	}
+	return cfgPath
+}
+
+// runListCommand invokes rootCmd with the given args, captures stdout, and
+// resets globals/flag state so successive calls don't bleed into each other.
+func runListCommand(t *testing.T, args []string) (string, error) {
+	t.Helper()
+	resetFlags := func(fs *pflag.FlagSet) {
+		fs.VisitAll(func(f *pflag.Flag) {
+			f.Changed = false
+			_ = f.Value.Set(f.DefValue)
+		})
+	}
+	resetFlags(rootCmd.PersistentFlags())
+	resetFlags(listCmd.Flags())
+	cfgFile = ""
+	noColor = false
+
+	rOut, wOut, err := os.Pipe()
+	if err != nil {
+		t.Fatalf("pipe: %v", err)
+	}
+	oldOut := os.Stdout
+	os.Stdout = wOut
+
+	rootCmd.SetArgs(args)
+	execErr := rootCmd.Execute()
+
+	_ = wOut.Close()
+	os.Stdout = oldOut
+
+	buf, _ := io.ReadAll(rOut)
+	return string(buf), execErr
+}
+
+func TestList_JSONAlias(t *testing.T) {
+	cfgPath := newListTestConfig(t)
+
+	aliasOut, err := runListCommand(t, []string{"list", "--config", cfgPath, "--no-color", "--json"})
+	if err != nil {
+		t.Fatalf("--json: %v", err)
+	}
+	explicitOut, err := runListCommand(t, []string{"list", "--config", cfgPath, "--no-color", "--format", "json"})
+	if err != nil {
+		t.Fatalf("--format json: %v", err)
+	}
+	if aliasOut != explicitOut {
+		t.Errorf("--json output differs from --format json:\n  alias:    %q\n  explicit: %q", aliasOut, explicitOut)
+	}
+}
+
+func TestList_JSONLAlias(t *testing.T) {
+	cfgPath := newListTestConfig(t)
+
+	aliasOut, err := runListCommand(t, []string{"list", "--config", cfgPath, "--no-color", "--jsonl"})
+	if err != nil {
+		t.Fatalf("--jsonl: %v", err)
+	}
+	explicitOut, err := runListCommand(t, []string{"list", "--config", cfgPath, "--no-color", "--format", "jsonl"})
+	if err != nil {
+		t.Fatalf("--format jsonl: %v", err)
+	}
+	if aliasOut != explicitOut {
+		t.Errorf("--jsonl output differs from --format jsonl:\n  alias:    %q\n  explicit: %q", aliasOut, explicitOut)
+	}
+}
+
+func TestList_MutuallyExclusive_JSONFormat(t *testing.T) {
+	cfgPath := newListTestConfig(t)
+	_, err := runListCommand(t, []string{"list", "--config", cfgPath, "--json", "--format", "jsonl"})
+	if err == nil {
+		t.Fatal("expected mutual-exclusion error, got nil")
+	}
+	if !strings.Contains(err.Error(), "none of the others can be") {
+		t.Errorf("error %q is not cobra's mutual-exclusion error", err.Error())
+	}
+}
+
+func TestList_MutuallyExclusive_JSONJSONL(t *testing.T) {
+	cfgPath := newListTestConfig(t)
+	_, err := runListCommand(t, []string{"list", "--config", cfgPath, "--json", "--jsonl"})
+	if err == nil {
+		t.Fatal("expected mutual-exclusion error, got nil")
+	}
+	if !strings.Contains(err.Error(), "none of the others can be") {
+		t.Errorf("error %q is not cobra's mutual-exclusion error", err.Error())
+	}
+}
+
 func TestFilterProjects(t *testing.T) {
 	projects := []project.Project{
 		{ID: "p20260401a", Title: "Alpha CLI", Tags: []string{"cli", "golang"}},
@@ -103,5 +227,32 @@ func TestFilterProjects(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestList_TagAlias(t *testing.T) {
+	cfgPath := newListTestConfig(t)
+
+	aliasOut, err := runListCommand(t, []string{"list", "--config", cfgPath, "--no-color", "--tag", "wip,cli"})
+	if err != nil {
+		t.Fatalf("--tag: %v", err)
+	}
+	explicitOut, err := runListCommand(t, []string{"list", "--config", cfgPath, "--no-color", "--tags", "wip,cli"})
+	if err != nil {
+		t.Fatalf("--tags: %v", err)
+	}
+	if aliasOut != explicitOut {
+		t.Errorf("--tag output differs from --tags:\n  alias:    %q\n  explicit: %q", aliasOut, explicitOut)
+	}
+}
+
+func TestList_TagsTagMutuallyExclusive(t *testing.T) {
+	cfgPath := newListTestConfig(t)
+	_, err := runListCommand(t, []string{"list", "--config", cfgPath, "--tags", "x", "--tag", "y"})
+	if err == nil {
+		t.Fatal("expected mutual-exclusion error, got nil")
+	}
+	if !strings.Contains(err.Error(), "none of the others can be") {
+		t.Errorf("error %q is not cobra's mutual-exclusion error", err.Error())
 	}
 }

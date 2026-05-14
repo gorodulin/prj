@@ -22,7 +22,10 @@ func init() {
 	rootCmd.AddCommand(newCmd)
 	newCmd.Flags().String("title", "", "project title")
 	newCmd.Flags().String("tags", "", "comma-separated tags")
+	newCmd.Flags().String("tag", "", "deprecated alias for --tags")
+	_ = newCmd.Flags().MarkDeprecated("tag", "use --tags instead")
 	newCmd.Flags().Bool("readme", false, "create README.md with front matter")
+	newCmd.MarkFlagsMutuallyExclusive("tags", "tag")
 }
 
 func runNew(cmd *cobra.Command, args []string) error {
@@ -52,7 +55,11 @@ func runNew(cmd *cobra.Command, args []string) error {
 	}
 
 	title, _ := cmd.Flags().GetString("title")
-	tags := text.ParseTags(flagString(cmd, "tags"))
+	tagsRaw := flagString(cmd, "tags")
+	if !cmd.Flags().Changed("tags") {
+		tagsRaw = flagString(cmd, "tag")
+	}
+	tags := text.ParseTags(tagsRaw)
 	createReadme, _ := cmd.Flags().GetBool("readme")
 
 	// Create metadata snapshot if title or tags provided.

@@ -23,9 +23,15 @@ func init() {
 	listCmd.Flags().BoolP("all", "a", false, "include metadata-only projects (not present locally)")
 	listCmd.Flags().StringP("format", "f", "", `output format: json, jsonl, or Go template (e.g. "{{.ID}}\t{{.Title}}")`)
 	listCmd.Flags().StringP("query", "q", "", "filter by substring (matches ID, title, tags)")
-	listCmd.Flags().StringSlice("tag", nil, "filter by exact tag (repeatable, AND logic)")
+	listCmd.Flags().String("tags", "", "filter by tags (comma-separated, AND logic)")
+	listCmd.Flags().String("tag", "", "deprecated alias for --tags")
+	_ = listCmd.Flags().MarkDeprecated("tag", "use --tags instead")
 	listCmd.Flags().Bool("missing", false, "show only metadata-only projects (not present locally)")
+	listCmd.Flags().Bool("json", false, "shorthand for --format json")
+	listCmd.Flags().Bool("jsonl", false, "shorthand for --format jsonl")
 	listCmd.MarkFlagsMutuallyExclusive("all", "missing")
+	listCmd.MarkFlagsMutuallyExclusive("format", "json", "jsonl")
+	listCmd.MarkFlagsMutuallyExclusive("tags", "tag")
 }
 
 func runList(cmd *cobra.Command, args []string) error {
@@ -41,6 +47,12 @@ func runList(cmd *cobra.Command, args []string) error {
 	formatStr, _ := cmd.Flags().GetString("format")
 	if !cmd.Flags().Changed("format") && cfg.ListFormat != "" {
 		formatStr = cfg.ListFormat
+	}
+	if jsonOut, _ := cmd.Flags().GetBool("json"); jsonOut {
+		formatStr = "json"
+	}
+	if jsonlOut, _ := cmd.Flags().GetBool("jsonl"); jsonlOut {
+		formatStr = "jsonl"
 	}
 
 	if err := requireConfig(cfg, "projects_folder"); err != nil {
@@ -77,8 +89,11 @@ func runList(cmd *cobra.Command, args []string) error {
 
 	// Apply filters.
 	query, _ := cmd.Flags().GetString("query")
-	filterTags, _ := cmd.Flags().GetStringSlice("tag")
-	filterTags = text.NormalizeTags(filterTags)
+	tagsRaw, _ := cmd.Flags().GetString("tags")
+	if !cmd.Flags().Changed("tags") {
+		tagsRaw, _ = cmd.Flags().GetString("tag")
+	}
+	filterTags := text.ParseTags(tagsRaw)
 	projects = filterProjects(projects, strings.ToLower(query), filterTags)
 
 	if len(projects) == 0 {
