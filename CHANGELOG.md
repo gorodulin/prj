@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+- `prj fixrefs <project-id>...` repairs cross-project symlinks inside project
+  folders, rewriting machine-specific targets as relative paths. A symlink is
+  fixed when its target contains exactly one valid project ID component (per
+  the configured `project_id_type`); the path before the ID is rebuilt
+  relative to the link and the suffix after it is preserved. Dry-run by
+  default; `--apply` performs the rewrites, `--verbose` lists unchanged links.
+  Accepts multiple IDs and the `current` virtual ID, and is interruptible.
+
 ## [0.8.0] - 2026-05-14
 
 ### Added

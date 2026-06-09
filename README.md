@@ -431,6 +431,41 @@ dir=$(prj path prj20250101a --strict) || echo "not synced"
 
 Invalid ID format always errors regardless of `--strict`.
 
+### `prj fixrefs <project-id> [<project-id>...]`
+
+Repair cross-project symlinks inside project folders, rewriting their targets
+as machine-independent relative paths.
+
+Stable sibling paths let you symlink one project from another (e.g. a playbook
+project pointing at a shared Ansible-role project). When such links are created
+with absolute paths, they break after syncing to a machine with a different
+folder layout. `prj fixrefs` scans a project recursively for symlinks whose
+target references a sibling project and rebuilds the path before the project ID
+as a correct relative path. The suffix after the project ID is preserved.
+
+```bash
+prj fixrefs prj20260402a              # preview (dry-run by default)
+prj fixrefs prj20260402a --apply      # rewrite the symlinks
+prj fixrefs prj20260402a --verbose    # also list unchanged symlinks
+prj fixrefs current                   # scan project in cwd
+prj fixrefs prj20260402a prj20260401b # scan several projects
+```
+
+A symlink is a candidate only when its target contains **exactly one** path
+component that is a valid project ID for the configured `project_id_type`.
+Targets with no project ID, two or more project IDs (ambiguous), or a foreign
+ID format are left untouched. The target does not need to exist. Only symlinks
+are modified — regular files and directories are never touched.
+
+Default is a dry-run preview; pass `--apply` to perform the rewrites. The
+operation is interruptible (Ctrl-C stops before any change). Output shows each
+changed link as `~ <link>  <old> → <new>` and a summary line; exit code is `1`
+on any error.
+
+`fixrefs` requires `project_id_type` to be configured (without it, no project
+IDs are recognizable). It is unrelated to `prj link`, which manages the
+separate links *tree*.
+
 ## Config
 
 ### `prj config`
