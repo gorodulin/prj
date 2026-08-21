@@ -89,12 +89,14 @@ Add `links_folder` to organize projects by topic. See below.
 
 ## Commands
 
-### `prj list`
+### `prj list [<query-term>...]`
 
-List local projects with titles and tags.
+List local projects with titles and tags, optionally filtered by query terms.
 
 ```bash
 prj list                    # ID, title, tags (local projects only)
+prj list zfs                # filter by substring across ID, title, tags
+prj list moto bike scooter  # multiple terms: match any (OR logic)
 prj list --all              # include metadata-only projects (not present locally)
 prj list --missing          # show only metadata-only projects
 prj list -f json            # JSON array
@@ -102,9 +104,13 @@ prj list -f jsonl           # one JSON object per line
 prj list --json             # shorthand for -f json
 prj list --jsonl            # shorthand for -f jsonl
 prj list --tags wip,cli     # filter by tags (AND logic)
-prj list -q zfs             # filter by substring across ID, title, tags
-prj list | grep zfs         # search across titles and tags
+prj list -q zfs             # same as a positional term (compatibility alias)
+prj list -- -foo            # search a term that starts with a dash
 ```
+
+Query terms are case-insensitive substrings matched against ID, title, and
+tags; a project is shown if any term matches. Terms combine with `--tags`
+using AND logic. To search metadata-only projects too, use `prj find`.
 
 The legacy `--tag` flag remains as a deprecated alias for `--tags` for
 one release; it accepts the same comma-separated syntax and is no longer
@@ -203,6 +209,24 @@ prj list -f json | jq -r '.[] | select(.tags | index("golang")) | .id'
 prj list -f '{{.ID}}' | xargs -I{} prj path {}
 ```
 
+### `prj find <query-term> [<query-term>...]`
+
+Search all known projects — local and metadata-only — by query terms.
+
+```bash
+prj find zfs                # search everything by substring
+prj find moto bike scooter  # multiple terms: match any (OR logic)
+prj find zfs --tags wip     # tags AND with the query
+prj find zfs -f jsonl       # same output formats as list
+```
+
+Same matching as `prj list` (case-insensitive substrings across ID, title,
+tags; OR across terms), but always includes metadata-only projects, so a
+search never misses a project just because its folder isn't on this
+machine. Non-local hits are marked in the default output format. At least
+one query term is required; for tag-only filtering across all projects use
+`prj list -a --tags <tags>`.
+
 ### `prj new`
 
 Create a new project with an auto-generated ID.
@@ -231,7 +255,7 @@ tags: [cli, golang]
 # My Project
 ```
 
-### `prj edit <project-id> [<project-id>...]`
+### `prj edit [<project-id>...]`
 
 Edit project metadata (title and/or tags). Accepts one or more IDs.
 
@@ -242,6 +266,7 @@ prj edit prj20260402a --add-tags "new-tag"          # add to existing tags
 prj edit prj20260402a --remove-tags "old-tag"       # remove specific tags
 prj edit prj20260402a --title "" --tags ""          # clear title and tags
 prj edit current --add-tags "wip"                   # edit project in cwd
+prj edit --add-tags "wip"                           # same: no ID means project in cwd
 prj edit prj20260402a prj20260403b --add-tags wip   # bulk: same edit on many
 prj edit prj20260402a --add-tags wip --dry-run      # preview without writing
 ```
@@ -310,14 +335,16 @@ line. Mutually exclusive with `--json`. In `--jsonl` mode there is no
 envelope and no `dry_run` field; dry-run state is signaled only by the
 stderr `DRY RUN — no metadata written` banner.
 
-### `prj info <project-id> [<project-id>...]`
+### `prj info [<project-id>...]`
 
-Display project details. Accepts one or more IDs.
+Display project details. Accepts one or more IDs; with no arguments, shows
+the project containing the current working directory.
 
 ```bash
+prj info                                    # project in cwd
 prj info prj20260402a                       # human-readable
 prj info prj20260402a prj20260403b          # multiple projects, blank-line separated
-prj info current                            # project in cwd (single-ID only)
+prj info current                            # project in cwd, explicit form
 prj info prj20260402a --json                # JSON envelope
 prj info prj20260402a prj20260403b --jsonl  # one JSON object per line
 ```
@@ -407,13 +434,15 @@ in the link tree are never modified.
 
 See [docs/link-system.md](docs/link-system.md) for the full design.
 
-### `prj path <project-id>`
+### `prj path [<project-id>]`
 
 Print the full path to a project folder.
 
 ```bash
 prj path prj20260402a            # /Users/.../projects/prj20260402a
-prj path current               # path of project in cwd
+prj path                         # path of project in cwd
+cd "$(prj path)"                 # jump to project root from anywhere inside it
+prj path current                 # path of project in cwd, explicit form
 prj path prj20260402a --strict   # error if folder doesn't exist
 ```
 

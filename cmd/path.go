@@ -11,10 +11,15 @@ import (
 )
 
 var pathCmd = &cobra.Command{
-	Use:   "path <project-id>",
+	Use:   "path [<project-id>]",
 	Short: "Print the full path to a project folder",
-	Args:  cobra.ExactArgs(1),
-	RunE:  runPath,
+	Long: `Print the full path to a project folder.
+
+With no argument, prints the root of the project containing the current
+working directory (same as "prj path current"), so cd "$(prj path)" jumps
+to the project root from anywhere inside it.`,
+	Args: cobra.MaximumNArgs(1),
+	RunE: runPath,
 }
 
 func init() {
@@ -32,7 +37,11 @@ func runPath(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	id, err := expandProjectID(args[0], cfg)
+	rawID := "current"
+	if len(args) == 1 {
+		rawID = args[0]
+	}
+	id, err := expandProjectID(rawID, cfg)
 	if err != nil {
 		return err
 	}

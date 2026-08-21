@@ -5,6 +5,30 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+- `prj find <query-term>...` searches all known projects — local and
+  metadata-only — by case-insensitive substring terms matched against ID,
+  title, and tags. Multiple terms combine with OR logic; `--tags` combines
+  with AND. Supports the same `-f/--format`, `--json`, and `--jsonl` output
+  options as `prj list`. At least one query term is required.
+- `prj list` accepts positional query terms: `prj list moto bike` filters
+  with OR logic across terms, same matching as `-q`. The `-q` flag remains
+  as a compatibility alias and OR-merges with positional terms. Terms that
+  start with a dash can be passed after `--`.
+- Bare `prj info`, `prj path`, and `prj edit` default to the project
+  containing the current working directory (equivalent to passing
+  `current`). `cd "$(prj path)"` jumps to the project root from anywhere
+  inside it. Because `edit` mutates metadata, a defaulted edit announces
+  `using current project <id>` on stderr (suppressed in `--json`/`--jsonl`
+  modes).
+
+### Changed
+- `prj list` previously ignored positional arguments silently, listing all
+  projects; they are now treated as query terms. A stray argument therefore
+  filters the output instead of being dropped.
+
 ## [0.9.0] - 2026-06-10
 
 ### Added

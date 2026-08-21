@@ -24,10 +24,14 @@ type infoResult struct {
 }
 
 var infoCmd = &cobra.Command{
-	Use:   "info <project-id> [<project-id>...]",
+	Use:   "info [<project-id>...]",
 	Short: "Display information about a project",
-	Args:  cobra.MinimumNArgs(1),
-	RunE:  runInfo,
+	Long: `Display information about one or more projects.
+
+With no arguments, shows the project containing the current working
+directory (same as "prj info current").`,
+	Args: cobra.ArbitraryArgs,
+	RunE: runInfo,
 }
 
 func init() {
@@ -48,6 +52,10 @@ func runInfo(cmd *cobra.Command, args []string) error {
 
 	if err := requireConfig(cfg, "projects_folder"); err != nil {
 		return infoError(jsonOut, jsonlOut, errConfigLoadFailed, err.Error())
+	}
+
+	if len(args) == 0 {
+		args = []string{"current"}
 	}
 
 	deduped := dedupeStrings(args)

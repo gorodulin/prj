@@ -7,13 +7,14 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 
 	"github.com/gorodulin/prj/internal/config"
 	"github.com/gorodulin/prj/internal/project"
 )
 
-func TestMatchesQuery(t *testing.T) {
+func TestMatchesAnyQueryTerm(t *testing.T) {
 	p := project.Project{
 		ID:    "p20260402a",
 		Title: "My Cool Project",
@@ -22,24 +23,24 @@ func TestMatchesQuery(t *testing.T) {
 
 	tests := []struct {
 		name  string
-		query string
+		terms []string
 		want  bool
 	}{
-		{"empty query matches all", "", true},
-		{"matches ID", "p2026", true},
-		{"matches title", "cool", true},
-		{"matches title case-insensitive", "COOL", true},
-		{"matches tag exactly", "cli", true},
-		{"matches tag substring", "raspberry", true},
-		{"matches tag case-insensitive", "GOLANG", true},
-		{"no match", "python", false},
+		{"empty terms match all", nil, true},
+		{"matches ID", []string{"p2026"}, true},
+		{"matches title", []string{"cool"}, true},
+		{"matches tag exactly", []string{"cli"}, true},
+		{"matches tag substring", []string{"raspberry"}, true},
+		{"no match", []string{"python"}, false},
+		{"any term matches (OR)", []string{"python", "cool"}, true},
+		{"all terms miss", []string{"python", "rust"}, false},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := matchesQuery(p, tt.query)
+			got := matchesAnyQueryTerm(p, tt.terms)
 			if got != tt.want {
-				t.Errorf("matchesQuery(%q) = %v, want %v", tt.query, got, tt.want)
+				t.Errorf("matchesAnyQueryTerm(%v) = %v, want %v", tt.terms, got, tt.want)
 			}
 		})
 	}
@@ -105,9 +106,10 @@ func newListTestConfig(t *testing.T) string {
 	return cfgPath
 }
 
-// runListCommand invokes rootCmd with the given args, captures stdout, and
-// resets globals/flag state so successive calls don't bleed into each other.
-func runListCommand(t *testing.T, args []string) (string, error) {
+// runCommandCapture invokes rootCmd with the given args, captures stdout and
+// stderr, and resets globals plus the given command's flag state so
+// successive calls don't bleed into each other.
+func runCommandCapture(t *testing.T, cmd *cobra.Command, args []string) (stdout, stderr string, err error) {
 	t.Helper()
 	resetFlags := func(fs *pflag.FlagSet) {
 		fs.VisitAll(func(f *pflag.Flag) {
@@ -116,7 +118,7 @@ func runListCommand(t *testing.T, args []string) (string, error) {
 		})
 	}
 	resetFlags(rootCmd.PersistentFlags())
-	resetFlags(listCmd.Flags())
+	resetFlags(cmd.Flags())
 	cfgFile = ""
 	noColor = false
 
@@ -124,17 +126,30 @@ func runListCommand(t *testing.T, args []string) (string, error) {
 	if err != nil {
 		t.Fatalf("pipe: %v", err)
 	}
-	oldOut := os.Stdout
-	os.Stdout = wOut
+	rErr, wErr, err := os.Pipe()
+	if err != nil {
+		t.Fatalf("pipe: %v", err)
+	}
+	oldOut, oldErr := os.Stdout, os.Stderr
+	os.Stdout, os.Stderr = wOut, wErr
 
 	rootCmd.SetArgs(args)
 	execErr := rootCmd.Execute()
 
 	_ = wOut.Close()
-	os.Stdout = oldOut
+	_ = wErr.Close()
+	os.Stdout, os.Stderr = oldOut, oldErr
 
-	buf, _ := io.ReadAll(rOut)
-	return string(buf), execErr
+	outBuf, _ := io.ReadAll(rOut)
+	errBuf, _ := io.ReadAll(rErr)
+	return string(outBuf), string(errBuf), execErr
+}
+
+// runListCommand invokes the list command and captures stdout.
+func runListCommand(t *testing.T, args []string) (string, error) {
+	t.Helper()
+	stdout, _, err := runCommandCapture(t, listCmd, args)
+	return stdout, err
 }
 
 func TestList_JSONAlias(t *testing.T) {
@@ -200,20 +215,22 @@ func TestFilterProjects(t *testing.T) {
 
 	tests := []struct {
 		name    string
-		query   string
+		terms   []string
 		tags    []string
 		wantIDs []string
 	}{
-		{"no filters", "", nil, []string{"p20260401a", "p20260402a", "p20260403a"}},
-		{"query only", "cli", nil, []string{"p20260401a", "p20260403a"}},
-		{"tag only", "", []string{"golang"}, []string{"p20260401a", "p20260402a"}},
-		{"query and tag", "alpha", []string{"golang"}, []string{"p20260401a"}},
-		{"no match", "nonexistent", nil, nil},
+		{"no filters", nil, nil, []string{"p20260401a", "p20260402a", "p20260403a"}},
+		{"single term", []string{"cli"}, nil, []string{"p20260401a", "p20260403a"}},
+		{"term case-insensitive", []string{"ALPHA"}, nil, []string{"p20260401a"}},
+		{"multiple terms OR", []string{"alpha", "beta"}, nil, []string{"p20260401a", "p20260402a"}},
+		{"tag only", nil, []string{"golang"}, []string{"p20260401a", "p20260402a"}},
+		{"term and tag", []string{"alpha"}, []string{"golang"}, []string{"p20260401a"}},
+		{"no match", []string{"nonexistent"}, nil, nil},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := filterProjects(projects, tt.query, tt.tags)
+			got := filterProjects(projects, tt.terms, tt.tags)
 			gotIDs := make([]string, len(got))
 			for i, p := range got {
 				gotIDs[i] = p.ID
@@ -227,6 +244,120 @@ func TestFilterProjects(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestList_PositionalTermFilters(t *testing.T) {
+	cfgPath := newListTestConfig(t)
+
+	out, err := runListCommand(t, []string{"list", "--config", cfgPath, "--no-color", "0101"})
+	if err != nil {
+		t.Fatalf("list with positional term: %v", err)
+	}
+	if !strings.Contains(out, "p20260101a") {
+		t.Errorf("output missing p20260101a: %q", out)
+	}
+	if strings.Contains(out, "p20260102b") {
+		t.Errorf("output should not contain p20260102b: %q", out)
+	}
+}
+
+func TestList_PositionalTermsOR(t *testing.T) {
+	cfgPath := newListTestConfig(t)
+
+	out, err := runListCommand(t, []string{"list", "--config", cfgPath, "--no-color", "0101", "0102"})
+	if err != nil {
+		t.Fatalf("list with two terms: %v", err)
+	}
+	if !strings.Contains(out, "p20260101a") || !strings.Contains(out, "p20260102b") {
+		t.Errorf("OR terms should match both projects, got: %q", out)
+	}
+}
+
+func TestList_QueryFlagMergedWithPositional(t *testing.T) {
+	cfgPath := newListTestConfig(t)
+
+	out, err := runListCommand(t, []string{"list", "--config", cfgPath, "--no-color", "0102", "-q", "0101"})
+	if err != nil {
+		t.Fatalf("list with -q and positional term: %v", err)
+	}
+	if !strings.Contains(out, "p20260101a") || !strings.Contains(out, "p20260102b") {
+		t.Errorf("-q should OR-merge with positional terms, got: %q", out)
+	}
+}
+
+func TestList_NoMatchMessage(t *testing.T) {
+	cfgPath := newListTestConfig(t)
+
+	out, err := runListCommand(t, []string{"list", "--config", cfgPath, "--no-color", "zzz-no-such"})
+	if err != nil {
+		t.Fatalf("list with unmatched term: %v", err)
+	}
+	if !strings.Contains(out, "No projects match the given filter.") {
+		t.Errorf("expected no-match message, got: %q", out)
+	}
+}
+
+func TestList_DashTermAfterDoubleDash(t *testing.T) {
+	cfgPath := newListTestConfig(t)
+
+	out, err := runListCommand(t, []string{"list", "--config", cfgPath, "--no-color", "--", "-foo"})
+	if err != nil {
+		t.Fatalf("list with -- -foo: %v", err)
+	}
+	if !strings.Contains(out, "No projects match the given filter.") {
+		t.Errorf("-foo after -- should be a query term (no match expected), got: %q", out)
+	}
+}
+
+// TestList_CyrillicTermMatchesTag exercises the full CLI path with metadata:
+// a non-ASCII term must match a tag case-insensitively (bilingual tags are
+// the motivating use case for term queries).
+func TestList_CyrillicTermMatchesTag(t *testing.T) {
+	cfg, tmp := newEditTestCfg(t)
+	mustMkProjectDir(t, cfg, "p20260101a")
+	mustMkProjectDir(t, cfg, "p20260102b")
+	mustSeedSnapshot(t, cfg, "p20260101a", []string{"мотоцикл"})
+	cfgPath := filepath.Join(tmp, "config.json")
+	if err := config.Save(cfg, cfgPath); err != nil {
+		t.Fatalf("save config: %v", err)
+	}
+
+	out, err := runListCommand(t, []string{"list", "--config", cfgPath, "--no-color", "МОТОЦИКЛ"})
+	if err != nil {
+		t.Fatalf("list with cyrillic term: %v", err)
+	}
+	if !strings.Contains(out, "p20260101a") {
+		t.Errorf("uppercase cyrillic term should match lowercase tag, got: %q", out)
+	}
+	if strings.Contains(out, "p20260102b") {
+		t.Errorf("untagged project should not match, got: %q", out)
+	}
+}
+
+func TestList_ConfigListFormatFallback(t *testing.T) {
+	cfg, tmp := newEditTestCfg(t)
+	mustMkProjectDir(t, cfg, "p20260101a")
+	cfg.ListFormat = "{{.ID}}!"
+	cfgPath := filepath.Join(tmp, "config.json")
+	if err := config.Save(cfg, cfgPath); err != nil {
+		t.Fatalf("save config: %v", err)
+	}
+
+	out, err := runListCommand(t, []string{"list", "--config", cfgPath, "--no-color"})
+	if err != nil {
+		t.Fatalf("list with list_format config: %v", err)
+	}
+	if !strings.Contains(out, "p20260101a!") {
+		t.Errorf("list_format config should apply when --format is absent, got: %q", out)
+	}
+
+	out, err = runListCommand(t, []string{"list", "--config", cfgPath, "--no-color", "-f", "{{.ID}}?"})
+	if err != nil {
+		t.Fatalf("list with explicit --format: %v", err)
+	}
+	if !strings.Contains(out, "p20260101a?") || strings.Contains(out, "!") {
+		t.Errorf("explicit --format should override list_format config, got: %q", out)
 	}
 }
 

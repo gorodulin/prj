@@ -40,10 +40,15 @@ type editResult struct {
 }
 
 var editCmd = &cobra.Command{
-	Use:   "edit <project-id> [<project-id>...]",
+	Use:   "edit [<project-id>...]",
 	Short: "Edit project metadata",
-	Args:  cobra.MinimumNArgs(1),
-	RunE:  runEdit,
+	Long: `Edit project metadata (title, tags).
+
+With no project ID, edits the project containing the current working
+directory (same as "prj edit current"); the resolved ID is announced on
+stderr.`,
+	Args: cobra.ArbitraryArgs,
+	RunE: runEdit,
 }
 
 func init() {
@@ -81,6 +86,19 @@ func runEdit(cmd *cobra.Command, args []string) error {
 	intent := buildIntent(cmd)
 	if code, reason, ok := validateIntent(intent, bulk); !ok {
 		return editError(jsonOut, jsonlOut, code, reason)
+	}
+
+	// No ID means the project containing the cwd. Resolve it eagerly and
+	// announce the implicit target, since edit mutates metadata.
+	if len(deduped) == 0 {
+		id, rerr := resolveCurrentProjectID(cfg)
+		if rerr != nil {
+			return editError(jsonOut, jsonlOut, errUnknownID, rerr.Error())
+		}
+		if !jsonOut && !jsonlOut {
+			fmt.Fprintf(os.Stderr, "using current project %s\n", id)
+		}
+		deduped = []string{id}
 	}
 
 	if !bulk {
