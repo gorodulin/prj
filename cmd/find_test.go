@@ -173,7 +173,6 @@ func TestFind_ConfigListFormatFallback(t *testing.T) {
 	}
 }
 
-// TestFind_DashTermAfterDoubleDash proves "--" passes dash-leading terms.
 func TestFind_DashTermAfterDoubleDash(t *testing.T) {
 	_, cfgPath := newFindTestConfig(t)
 	out, err := runFindCommand(t, []string{"find", "--config", cfgPath, "--no-color", "--", "-foo"})

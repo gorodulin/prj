@@ -79,7 +79,7 @@ func runList(cmd *cobra.Command, args []string) error {
 		projects = append(projects, resolveProject(id, cfg, ids.localSet[id]))
 	}
 
-	// Apply filters. Positional args and -q are merged as OR terms.
+	// Apply filters.
 	terms := append([]string{}, args...)
 	if query, _ := cmd.Flags().GetString("query"); query != "" {
 		terms = append(terms, query)
