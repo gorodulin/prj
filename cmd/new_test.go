@@ -54,6 +54,7 @@ func runNewCommand(t *testing.T, args []string) (string, error) {
 	resetFlags(newCmd.Flags())
 	cfgFile = ""
 	noColor = false
+	colorMode = ""
 
 	rOut, wOut, err := os.Pipe()
 	if err != nil {

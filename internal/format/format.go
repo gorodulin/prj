@@ -9,7 +9,7 @@ import (
 )
 
 // DefaultFormat is the built-in template used when no format is configured.
-const DefaultFormat = `{{.ID | red}} {{.Local | flag}} {{.ID | date "YY-MM-DD" | cyan}} {{.Title | yellow}} {{.Tags | join ", " | blue}}`
+const DefaultFormat = `{{.ID | red}} {{.Local | flag}} {{.ID | date "YY-MM-DD" | cyan}} {{.Title | yellow}} {{.Tags | join ", " | green}}`
 
 // Options controls formatter behavior.
 type Options struct {

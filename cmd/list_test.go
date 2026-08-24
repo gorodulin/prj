@@ -121,6 +121,7 @@ func runCommandCapture(t *testing.T, cmd *cobra.Command, args []string) (stdout,
 	resetFlags(cmd.Flags())
 	cfgFile = ""
 	noColor = false
+	colorMode = ""
 
 	rOut, wOut, err := os.Pipe()
 	if err != nil {
@@ -203,6 +204,37 @@ func TestList_MutuallyExclusive_JSONJSONL(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "none of the others can be") {
 		t.Errorf("error %q is not cobra's mutual-exclusion error", err.Error())
+	}
+}
+
+func TestList_ColorAlwaysEmitsANSIOnPipe(t *testing.T) {
+	cfgPath := newListTestConfig(t)
+
+	out, err := runListCommand(t, []string{"list", "--config", cfgPath, "--color", "always"})
+	if err != nil {
+		t.Fatalf("--color always: %v", err)
+	}
+	if !strings.Contains(out, "\033[") {
+		t.Errorf("--color always on a pipe should emit ANSI escapes, got %q", out)
+	}
+}
+
+func TestList_ColorInvalid(t *testing.T) {
+	cfgPath := newListTestConfig(t)
+
+	for _, tt := range []struct{ name, value string }{
+		{"bogus", "bogus"},
+		{"explicit empty", ""},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := runListCommand(t, []string{"list", "--config", cfgPath, "--color=" + tt.value})
+			if err == nil {
+				t.Fatalf("--color=%q: expected error, got nil", tt.value)
+			}
+			if !strings.Contains(err.Error(), "is not recognized") {
+				t.Errorf("--color=%q: error %q is not the not-recognized error", tt.value, err.Error())
+			}
+		})
 	}
 }
 

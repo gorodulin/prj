@@ -30,7 +30,7 @@ func resolveOutputFormat(cmd *cobra.Command, cfg config.Config) string {
 // writeProjectList renders projects to stdout in the given format.
 func writeProjectList(projects []project.Project, formatStr string, cfg config.Config) error {
 	opts := format.Options{
-		Color: format.ResolveColor(os.Stdout, noColor, cfg.Color),
+		Color: format.ResolveColor(os.Stdout, noColor, colorMode, cfg.Color),
 	}
 	return format.Format(os.Stdout, projects, formatStr, opts)
 }

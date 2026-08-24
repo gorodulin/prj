@@ -20,12 +20,18 @@ const (
 var ValidColorModes = []string{ColorAuto, ColorAlways, ColorNever}
 
 // ResolveColor decides whether ANSI output should be emitted on f.
-// Precedence: --no-color flag → config "always"/"never" → IsTTY auto-detect.
-func ResolveColor(f *os.File, noColorFlag bool, cfgColor string) bool {
+// Precedence: --no-color flag → --color flag → config "always"/"never" → IsTTY auto-detect.
+// An empty colorFlag means the --color flag was not passed (guaranteed by the
+// caller validating on Changed("color") rather than a non-empty check).
+func ResolveColor(f *os.File, noColorFlag bool, colorFlag, cfgColor string) bool {
 	if noColorFlag {
 		return false
 	}
-	switch cfgColor {
+	mode := cfgColor
+	if colorFlag != "" {
+		mode = colorFlag
+	}
+	switch mode {
 	case ColorAlways:
 		return true
 	case ColorNever:

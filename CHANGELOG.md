@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.11.0] - 2026-08-25
+
+### Added
+- Global `--color=auto|always|never` flag overrides the `color` config field
+  per invocation, so `prj list --color=always | tail` keeps color through a
+  pipe. `--no-color` still works and takes precedence over `--color`.
+- Template color functions now cover the full ANSI standard set: all eight
+  base foreground colors (`black`, `red`, `green`, `yellow`, `blue`,
+  `magenta`, `cyan`, `white`), their `bright*` variants, plus the `italic`
+  and `underline` text styles.
+
+### Changed
+- The default `list_format` now colors tags green instead of blue.
+
 ## [0.10.0] - 2026-08-21
 
 ### Added

@@ -44,7 +44,7 @@ func runInit(_ *cobra.Command, _ []string) error {
 		return fmt.Errorf("load config: %w", err)
 	}
 
-	color := format.ResolveColor(os.Stderr, noColor, cfg.Color)
+	color := format.ResolveColor(os.Stderr, noColor, colorMode, cfg.Color)
 	p := &prompter{r: bufio.NewReader(os.Stdin), color: color, out: os.Stderr}
 
 	sigs := make(chan os.Signal, 1)

@@ -166,10 +166,23 @@ Template functions:
 | `join` | `{{.Tags \| join ","}}` | Join string slice with separator |
 | `date` | `{{.ID \| date "YYYY-MM-DD"}}` | Extract date from project ID. Tokens: `YYYY`, `YY`, `MM`, `DD`, `HH`, `mm`, `ss` |
 | `upper`, `lower` | `{{.ID \| upper}}` | Change case |
-| `bold`, `dim` | `{{.ID \| bold}}` | Text styling (auto-disabled when piped) |
-| `red`, `green`, `yellow`, `blue`, `cyan` | `{{.Title \| green}}` | Color (auto-disabled when piped) |
+| `bold`, `dim`, `italic`, `underline` | `{{.ID \| bold}}` | Text styling (auto-disabled when piped) |
+| `black`, `red`, `green`, `yellow`, `blue`, `magenta`, `cyan`, `white` | `{{.Title \| green}}` | Foreground color (auto-disabled when piped) |
+| `brightblack`, `brightred`, `brightgreen`, `brightyellow`, `brightblue`, `brightmagenta`, `brightcyan`, `brightwhite` | `{{.Title \| brightblue}}` | Bright foreground color (`brightblack` is dark gray) |
 
 Escape sequences `\t` and `\n` are interpreted in template strings.
+
+Color is auto-disabled when output is piped. Force it on (or off) per
+invocation with the global `--color` flag, which overrides the `color` config
+field:
+
+```bash
+prj list --color=always | tail    # keep color through the pipe
+prj list --color=never            # plain output even on a TTY
+```
+
+`--no-color` still works and wins over `--color`. Full precedence:
+`--no-color` → `--color` → `color` config → TTY auto-detect.
 
 #### Default format in config
 
@@ -548,7 +561,7 @@ enable additional features.
 | `link_title_format` | Go template for link names. Fields: `{{.Title}}`, `{{.ID}}`. Supports same functions as `list_format` (`date`, `upper`, `lower`, etc.). Old `{token}` syntax is auto-migrated |
 | `list_format` | Default output format for `prj list`: `json`, `jsonl`, or a Go template (e.g. `"{{.ID}}\t{{.Title}}"`). Overridden by `--format` flag |
 | `link_sink_name` | Fallback folder name for projects that match no tag-based folder (empty = disabled) |
-| `color` | Colored output mode: `auto` (default, on when stdout is a TTY), `always`, or `never`. The global `--no-color` flag overrides this |
+| `color` | Colored output mode: `auto` (default, on when stdout is a TTY), `always`, or `never`. Overridden per-invocation by the global `--color=auto\|always\|never` flag; the global `--no-color` flag overrides both. Precedence: `--no-color` → `--color` → this config field → TTY auto-detect |
 
 ## Metadata
 

@@ -40,7 +40,7 @@ var Fields = []Field{
 	},
 	{
 		// Keep Default in sync with format.DefaultFormat.
-		Key: "list_format", Hint: "json", Default: `{{.ID | red}} {{.Local | flag}} {{.ID | date "YY-MM-DD" | cyan}} {{.Title | yellow}} {{.Tags | join ", " | blue}}`,
+		Key: "list_format", Hint: "json", Default: `{{.ID | red}} {{.Local | flag}} {{.ID | date "YY-MM-DD" | cyan}} {{.Title | yellow}} {{.Tags | join ", " | green}}`,
 		Get: func(c *Config) string { return c.ListFormat },
 		Set: func(c *Config, v string) error { c.ListFormat = v; return nil },
 	},

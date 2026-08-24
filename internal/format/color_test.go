@@ -30,24 +30,29 @@ func TestResolveColor(t *testing.T) {
 	defer w.Close()
 
 	tests := []struct {
-		name     string
-		noColor  bool
-		cfgColor string
-		want     bool
+		name      string
+		noColor   bool
+		flagColor string
+		cfgColor  string
+		want      bool
 	}{
-		{"noColor flag overrides always", true, ColorAlways, false},
-		{"noColor flag overrides auto", true, ColorAuto, false},
-		{"config always forces on", false, ColorAlways, true},
-		{"config never forces off", false, ColorNever, false},
-		{"config auto falls through to IsTTY (pipe → off)", false, ColorAuto, false},
-		{"config empty falls through to IsTTY (pipe → off)", false, "", false},
+		{"noColor flag overrides always", true, "", ColorAlways, false},
+		{"noColor flag overrides auto", true, "", ColorAuto, false},
+		{"config always forces on", false, "", ColorAlways, true},
+		{"config never forces off", false, "", ColorNever, false},
+		{"config auto falls through to IsTTY (pipe → off)", false, "", ColorAuto, false},
+		{"config empty falls through to IsTTY (pipe → off)", false, "", "", false},
+		{"flag always beats config never (pipe → on)", false, ColorAlways, ColorNever, true},
+		{"flag never beats config always", false, ColorNever, ColorAlways, false},
+		{"flag auto overrides config always, falls to IsTTY (pipe → off)", false, ColorAuto, ColorAlways, false},
+		{"noColor beats flag always", true, ColorAlways, ColorNever, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := ResolveColor(w, tt.noColor, tt.cfgColor)
+			got := ResolveColor(w, tt.noColor, tt.flagColor, tt.cfgColor)
 			if got != tt.want {
-				t.Errorf("ResolveColor(pipe, noColor=%v, cfg=%q) = %v, want %v",
-					tt.noColor, tt.cfgColor, got, tt.want)
+				t.Errorf("ResolveColor(pipe, noColor=%v, flag=%q, cfg=%q) = %v, want %v",
+					tt.noColor, tt.flagColor, tt.cfgColor, got, tt.want)
 			}
 		})
 	}
