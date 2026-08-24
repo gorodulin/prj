@@ -62,11 +62,24 @@ func TestFuncMapColorEnabled(t *testing.T) {
 	}{
 		{"bold", "bold", "\033[1mhi\033[0m"},
 		{"dim", "dim", "\033[2mhi\033[0m"},
+		{"italic", "italic", "\033[3mhi\033[0m"},
+		{"underline", "underline", "\033[4mhi\033[0m"},
+		{"black", "black", "\033[30mhi\033[0m"},
 		{"red", "red", "\033[31mhi\033[0m"},
 		{"green", "green", "\033[32mhi\033[0m"},
 		{"yellow", "yellow", "\033[33mhi\033[0m"},
 		{"blue", "blue", "\033[34mhi\033[0m"},
+		{"magenta", "magenta", "\033[35mhi\033[0m"},
 		{"cyan", "cyan", "\033[36mhi\033[0m"},
+		{"white", "white", "\033[37mhi\033[0m"},
+		{"brightblack", "brightblack", "\033[90mhi\033[0m"},
+		{"brightred", "brightred", "\033[91mhi\033[0m"},
+		{"brightgreen", "brightgreen", "\033[92mhi\033[0m"},
+		{"brightyellow", "brightyellow", "\033[93mhi\033[0m"},
+		{"brightblue", "brightblue", "\033[94mhi\033[0m"},
+		{"brightmagenta", "brightmagenta", "\033[95mhi\033[0m"},
+		{"brightcyan", "brightcyan", "\033[96mhi\033[0m"},
+		{"brightwhite", "brightwhite", "\033[97mhi\033[0m"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -81,7 +94,12 @@ func TestFuncMapColorEnabled(t *testing.T) {
 
 func TestFuncMapColorDisabled(t *testing.T) {
 	fm := FuncMap(false)
-	for _, name := range []string{"bold", "dim", "red", "green", "yellow", "blue", "cyan"} {
+	for _, name := range []string{
+		"bold", "dim", "italic", "underline",
+		"black", "red", "green", "yellow", "blue", "magenta", "cyan", "white",
+		"brightblack", "brightred", "brightgreen", "brightyellow",
+		"brightblue", "brightmagenta", "brightcyan", "brightwhite",
+	} {
 		t.Run(name, func(t *testing.T) {
 			fn := fm[name].(func(string) string)
 			got := fn("hi")
