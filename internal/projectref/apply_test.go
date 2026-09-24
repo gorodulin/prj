@@ -3,6 +3,7 @@ package projectref
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -48,6 +49,31 @@ func TestApply(t *testing.T) {
 		cands := scanAll(t, projDir, projects)
 		if outcomes := Apply(cands); len(outcomes) != 0 {
 			t.Fatalf("got %d outcomes, want 0", len(outcomes))
+		}
+	})
+
+	t.Run("failed create keeps the original link", func(t *testing.T) {
+		projects, projDir := setupProject(t, "p20260402a", "p20260401b")
+		linkPath := filepath.Join(projDir, "deps", "roles")
+		orig := filepath.Join(projects, "p20260401b")
+		mustSymlink(t, orig, linkPath)
+
+		// A target longer than PATH_MAX makes symlink creation fail.
+		tooLong := strings.Repeat("a", 5000)
+		outcomes := Apply([]Candidate{{Path: linkPath, RawTarget: orig, WantTarget: tooLong, NeedsChange: true}})
+		if len(outcomes) != 1 || outcomes[0].Err == nil {
+			t.Fatalf("outcomes = %+v, want one failure", outcomes)
+		}
+		raw, err := os.Readlink(linkPath)
+		if err != nil {
+			t.Fatalf("original link lost: %v", err)
+		}
+		if raw != orig {
+			t.Errorf("readlink = %q, want original %q", raw, orig)
+		}
+		entries, _ := os.ReadDir(filepath.Dir(linkPath))
+		if len(entries) != 1 {
+			t.Errorf("expected only the original link in %s, found %d entries", filepath.Dir(linkPath), len(entries))
 		}
 	})
 
