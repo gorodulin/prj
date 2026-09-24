@@ -67,6 +67,14 @@ command -v gh >/dev/null 2>&1 || error "gh (GitHub CLI) is not installed"
 command -v brew >/dev/null 2>&1 || error "brew is not installed"
 info "Required tools available"
 
+# Homebrew works and the local tap exists (step 14 needs both; checking here
+# fails before anything is published, and catches non-functional brew stubs).
+BREW_REPO="$(brew --repository 2>/dev/null)" && [[ -d "$BREW_REPO" ]] \
+    || error "brew is not functional (brew --repository failed)"
+TAP_DIR="$BREW_REPO/Library/Taps/${TAP_NAME/\///homebrew-}"
+[[ -d "$TAP_DIR" ]] || error "Local tap not found. Run: brew tap-new $TAP_NAME"
+info "Homebrew and local tap $TAP_NAME available"
+
 # Clean working tree
 if [[ -n "$(git status --porcelain)" ]]; then
     error "Working tree is not clean. Commit or stash changes first."
@@ -266,11 +274,6 @@ echo ""
 # ── Step 14: Brew test ───────────────────────────────────────────
 
 echo "Testing Homebrew formula..."
-
-TAP_DIR="$(brew --repository)/Library/Taps/${TAP_NAME/\///homebrew-}"
-if [[ ! -d "$TAP_DIR" ]]; then
-    error "Local tap not found. Run: brew tap-new $TAP_NAME"
-fi
 
 cp "$FORMULA" "$TAP_DIR/Formula/prj.rb"
 
