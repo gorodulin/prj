@@ -2,7 +2,9 @@ package metadata
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -106,9 +108,14 @@ func BuildSnapshotFilename() string {
 	return time.Now().UTC().Format("20060102T150405Z") + ".json"
 }
 
-// WriteSnapshot creates the metadata directory if needed and writes a snapshot file.
+// WriteSnapshot creates the project's metadata directory if needed and writes a
+// snapshot file. The parent (the configured metadata folder) must already exist,
+// so a mistyped metadata_folder fails instead of silently creating a new tree.
 func WriteSnapshot(dir string, s Snapshot) (string, error) {
-	if err := os.MkdirAll(dir, 0755); err != nil {
+	if err := os.Mkdir(dir, 0755); err != nil && !errors.Is(err, fs.ErrExist) {
+		if errors.Is(err, fs.ErrNotExist) {
+			return "", fmt.Errorf("metadata folder %s does not exist", filepath.Dir(dir))
+		}
 		return "", fmt.Errorf("create metadata dir %s: %w", dir, err)
 	}
 

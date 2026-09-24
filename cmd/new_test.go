@@ -165,3 +165,22 @@ func TestNew_MetadataWriteFailureRemovesFolder(t *testing.T) {
 	}
 	assertNoProjectFolders(t, cfgPath)
 }
+
+func TestNew_MissingMetadataFolderLeavesNothing(t *testing.T) {
+	cfgPath := newNewTestConfig(t)
+	cfg, _ := config.Load(cfgPath)
+	typo := filepath.Join(filepath.Dir(cfg.MetadataFolder), "Metdata")
+	cfg.MetadataFolder = typo
+	if err := config.Save(cfg, cfgPath); err != nil {
+		t.Fatalf("save config: %v", err)
+	}
+
+	_, err := runNewCommand(t, []string{"new", "--config", cfgPath, "--title", "X"})
+	if err == nil || !strings.Contains(err.Error(), "does not exist") {
+		t.Fatalf("expected missing metadata folder error, got %v", err)
+	}
+	if _, statErr := os.Stat(typo); !os.IsNotExist(statErr) {
+		t.Errorf("mistyped metadata folder %s should not have been created", typo)
+	}
+	assertNoProjectFolders(t, cfgPath)
+}

@@ -145,3 +145,24 @@ func writeJSON(t *testing.T, dir, name, content string) {
 		t.Fatal(err)
 	}
 }
+
+func TestWriteSnapshotMissingMetadataFolder(t *testing.T) {
+	metaRoot := filepath.Join(t.TempDir(), "Metdata")
+	_, err := WriteSnapshot(filepath.Join(metaRoot, "p20260101a_meta"), Snapshot{Version: 1})
+	if err == nil {
+		t.Fatal("expected error for missing metadata folder, got nil")
+	}
+	if _, statErr := os.Stat(metaRoot); !os.IsNotExist(statErr) {
+		t.Errorf("metadata folder %s should not have been created", metaRoot)
+	}
+}
+
+func TestWriteSnapshotExistingProjectDir(t *testing.T) {
+	dir := filepath.Join(t.TempDir(), "p20260101a_meta")
+	if err := os.Mkdir(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := WriteSnapshot(dir, Snapshot{Version: 1}); err != nil {
+		t.Fatalf("write into existing dir: %v", err)
+	}
+}
