@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.11.1] - 2026-09-24
+
+### Fixed
+- `prj new --title`/`--tags` with `machine_name`, `machine_id`, or
+  `metadata_folder` unset no longer leaves an empty project folder behind.
+  Required configuration is checked before the project ID is allocated, and
+  if a later step fails, the just-created project folder is removed.
+- A mistyped or missing `metadata_folder` no longer causes `prj new` and
+  `prj edit` to silently create a new directory tree and store metadata
+  there. They now fail with `metadata folder <path> does not exist`; the
+  folder must exist (`prj init` offers to create it).
+- `prj fixrefs --apply` no longer loses a symlink when creating its
+  replacement fails; the original link is kept.
+
 ## [0.11.0] - 2026-08-25
 
 ### Added
