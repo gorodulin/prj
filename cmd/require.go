@@ -7,6 +7,9 @@ import (
 	"github.com/gorodulin/prj/internal/config"
 )
 
+// metadataWriteKeys are the config fields needed to write a metadata snapshot.
+var metadataWriteKeys = []string{"metadata_folder", "machine_name", "machine_id"}
+
 // requireConfig checks that the named config fields are all non-empty and
 // returns a single error listing ALL missing fields with remediation hints.
 func requireConfig(cfg config.Config, keys ...string) error {

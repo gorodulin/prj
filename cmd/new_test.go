@@ -115,3 +115,53 @@ func TestNew_TagsTagMutuallyExclusive(t *testing.T) {
 		t.Errorf("error %q is not cobra's mutual-exclusion error", err.Error())
 	}
 }
+
+func assertNoProjectFolders(t *testing.T, cfgPath string) {
+	t.Helper()
+	cfg, err := config.Load(cfgPath)
+	if err != nil {
+		t.Fatalf("load config: %v", err)
+	}
+	entries, err := os.ReadDir(cfg.ProjectsFolder)
+	if err != nil {
+		t.Fatalf("read projects folder: %v", err)
+	}
+	if len(entries) != 0 {
+		t.Errorf("expected no leftover project folders, found %d (first: %s)", len(entries), entries[0].Name())
+	}
+}
+
+func TestNew_MissingMachineConfigLeavesNoFolder(t *testing.T) {
+	cfgPath := newNewTestConfig(t)
+	cfg, _ := config.Load(cfgPath)
+	cfg.MachineID = ""
+	cfg.MachineName = ""
+	if err := config.Save(cfg, cfgPath); err != nil {
+		t.Fatalf("save config: %v", err)
+	}
+
+	_, err := runNewCommand(t, []string{"new", "--config", cfgPath, "--title", "X"})
+	if err == nil || !strings.Contains(err.Error(), "machine_id") {
+		t.Fatalf("expected missing machine_id error, got %v", err)
+	}
+	assertNoProjectFolders(t, cfgPath)
+}
+
+func TestNew_MetadataWriteFailureRemovesFolder(t *testing.T) {
+	cfgPath := newNewTestConfig(t)
+	cfg, _ := config.Load(cfgPath)
+	if os.Geteuid() == 0 {
+		t.Skip("root ignores directory permissions")
+	}
+	// Read-only metadata folder: still scannable, but the snapshot dir can't be created.
+	if err := os.Chmod(cfg.MetadataFolder, 0o555); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chmod(cfg.MetadataFolder, 0o755) })
+
+	_, err := runNewCommand(t, []string{"new", "--config", cfgPath, "--title", "X", "--readme"})
+	if err == nil || !strings.Contains(err.Error(), "write metadata") {
+		t.Fatalf("expected metadata write error, got %v", err)
+	}
+	assertNoProjectFolders(t, cfgPath)
+}

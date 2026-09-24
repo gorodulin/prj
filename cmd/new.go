@@ -28,13 +28,27 @@ func init() {
 	newCmd.MarkFlagsMutuallyExclusive("tags", "tag")
 }
 
-func runNew(cmd *cobra.Command, args []string) error {
+func runNew(cmd *cobra.Command, args []string) (err error) {
 	cfg, err := config.Load(cfgFile)
 	if err != nil {
 		return fmt.Errorf("load config: %w", err)
 	}
 
-	if err := requireConfig(cfg, "projects_folder"); err != nil {
+	title, _ := cmd.Flags().GetString("title")
+	tagsRaw := flagString(cmd, "tags")
+	if !cmd.Flags().Changed("tags") {
+		tagsRaw = flagString(cmd, "tag")
+	}
+	tags := text.ParseTags(tagsRaw)
+	createReadme, _ := cmd.Flags().GetBool("readme")
+	hasTitle := title != ""
+	writeMeta := hasTitle || len(tags) > 0
+
+	required := []string{"projects_folder"}
+	if writeMeta {
+		required = append(required, metadataWriteKeys...)
+	}
+	if err := requireConfig(cfg, required...); err != nil {
 		return err
 	}
 
@@ -48,31 +62,36 @@ func runNew(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("generate project ID: %w", err)
 	}
 
-	// Create the project folder.
 	projPath := filepath.Join(cfg.ProjectsFolder, newID)
 	if err := os.Mkdir(projPath, 0755); err != nil {
 		return fmt.Errorf("create project folder %s: %w", projPath, err)
 	}
-
-	title, _ := cmd.Flags().GetString("title")
-	tagsRaw := flagString(cmd, "tags")
-	if !cmd.Flags().Changed("tags") {
-		tagsRaw = flagString(cmd, "tag")
-	}
-	tags := text.ParseTags(tagsRaw)
-	createReadme, _ := cmd.Flags().GetBool("readme")
-
-	// Create metadata snapshot if title or tags provided.
-	hasTitle := title != ""
-	if hasTitle || len(tags) > 0 {
-		if err := requireConfig(cfg, "metadata_folder", "machine_name", "machine_id"); err != nil {
-			return err
+	metaDir := cfg.MetadataDir(newID)
+	defer func() {
+		if err != nil {
+			_ = os.RemoveAll(projPath)
+			_ = os.Remove(metaDir) // only succeeds if left empty by a failed snapshot write
 		}
+	}()
+
+	// README goes before the snapshot so a failure only leaves state inside projPath.
+	if createReadme {
+		if !hasTitle {
+			fmt.Fprintln(os.Stderr, "Warning: --readme requires --title, skipping README creation")
+		} else {
+			content := project.BuildReadme(title, tags)
+			readmePath := filepath.Join(projPath, "README.md")
+			if err := os.WriteFile(readmePath, []byte(content), 0644); err != nil {
+				return fmt.Errorf("write README.md: %w", err)
+			}
+		}
+	}
+
+	if writeMeta {
 		var titleSet *string
 		if hasTitle {
 			titleSet = &title
 		}
-		metaDir := cfg.MetadataDir(newID)
 		s := metadata.Snapshot{
 			TitleSet:    titleSet,
 			Tags:        tags,
@@ -88,19 +107,6 @@ func runNew(cmd *cobra.Command, args []string) error {
 			fmt.Fprintf(os.Stderr, "Warning: purge old snapshots for %s: %v\n", newID, err)
 		} else if n > 0 {
 			fmt.Fprintf(os.Stderr, "Purged %d old snapshot(s) for %s\n", n, newID)
-		}
-	}
-
-	// Create README.md if requested.
-	if createReadme {
-		if !hasTitle {
-			fmt.Fprintln(os.Stderr, "Warning: --readme requires --title, skipping README creation")
-		} else {
-			content := project.BuildReadme(title, tags)
-			readmePath := filepath.Join(projPath, "README.md")
-			if err := os.WriteFile(readmePath, []byte(content), 0644); err != nil {
-				return fmt.Errorf("write README.md: %w", err)
-			}
 		}
 	}
 

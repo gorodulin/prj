@@ -76,7 +76,7 @@ func runEdit(cmd *cobra.Command, args []string) error {
 		return editError(jsonOut, jsonlOut, errConfigLoadFailed, fmt.Errorf("load config: %w", err).Error())
 	}
 
-	if err := requireConfig(cfg, "metadata_folder", "machine_name", "machine_id"); err != nil {
+	if err := requireConfig(cfg, metadataWriteKeys...); err != nil {
 		return editError(jsonOut, jsonlOut, errConfigLoadFailed, err.Error())
 	}
 
