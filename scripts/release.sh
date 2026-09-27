@@ -18,7 +18,8 @@ WINGET_INSTALLER="gorodulin.prj.installer.yaml"
 WINGET_LOCALE="gorodulin.prj.locale.en-US.yaml"
 WINGET_FORK="gorodulin/winget-pkgs"
 WINGET_UPSTREAM="microsoft/winget-pkgs"
-TAP_NAME="gorodulin/tap"
+TAP_REPO="gorodulin/homebrew-tap"
+TAP_FORMULA="Formula/prj.rb"
 MAIN_BRANCH="main"
 
 # ── Arguments ─────────────────────────────────────────────────────
@@ -64,16 +65,8 @@ echo "Checking prerequisites..."
 
 # Required tools
 command -v gh >/dev/null 2>&1 || error "gh (GitHub CLI) is not installed"
-command -v brew >/dev/null 2>&1 || error "brew is not installed"
+command -v go >/dev/null 2>&1 || error "go is not installed"
 info "Required tools available"
-
-# Homebrew works and the local tap exists (step 14 needs both; checking here
-# fails before anything is published, and catches non-functional brew stubs).
-BREW_REPO="$(brew --repository 2>/dev/null)" && [[ -d "$BREW_REPO" ]] \
-    || error "brew is not functional (brew --repository failed)"
-TAP_DIR="$BREW_REPO/Library/Taps/${TAP_NAME/\///homebrew-}"
-[[ -d "$TAP_DIR" ]] || error "Local tap not found. Run: brew tap-new $TAP_NAME"
-info "Homebrew and local tap $TAP_NAME available"
 
 # Clean working tree
 if [[ -n "$(git status --porcelain)" ]]; then
@@ -112,6 +105,16 @@ info "Packaging files exist"
 gh api "repos/$WINGET_FORK" --silent 2>/dev/null || error "WinGet fork not found: $WINGET_FORK"
 info "WinGet fork accessible"
 
+# The tap's formula matches ours apart from url/sha256, so the release
+# changes only those two lines.
+TAP_CURRENT="$(gh api -H "Accept: application/vnd.github.raw" "repos/$TAP_REPO/contents/$TAP_FORMULA" 2>/dev/null)" \
+    || error "Formula not found in tap: $TAP_REPO/$TAP_FORMULA"
+strip_release_lines() { grep -vE '^  (url|sha256) "'; }
+if [[ "$(strip_release_lines <<<"$TAP_CURRENT")" != "$(strip_release_lines < "$FORMULA")" ]]; then
+    error "$TAP_REPO/$TAP_FORMULA differs from $FORMULA beyond url/sha256. Sync them first."
+fi
+info "Tap formula matches $FORMULA"
+
 echo ""
 
 # ── Dry run stops here ───────────────────────────────────────────
@@ -123,8 +126,9 @@ if $DRY_RUN; then
     echo "  2b. make cross && gh release upload $TAG dist/prj-*"
     echo "  3. Download $TARBALL_URL"
     echo "  4. Compute checksums and patch $FORMULA and $PORTFILE"
-    echo "  5. Local brew install, test, uninstall"
-    echo "  6. Patch WinGet manifests and submit PR to $WINGET_UPSTREAM"
+    echo "  5. Build the tarball as the formula does (go build), check --version and completions"
+    echo "  6. Commit packaging, push $MAIN_BRANCH, commit formula to $TAP_REPO"
+    echo "  7. Patch WinGet manifests and submit PR to $WINGET_UPSTREAM"
     echo ""
     echo "All guards passed. Run without --dry-run to proceed."
     exit 0
@@ -271,29 +275,38 @@ info "No PLACEHOLDERs remain"
 
 echo ""
 
-# ── Step 14: Brew test ───────────────────────────────────────────
+# ── Step 14: Verify formula without Homebrew ────────────────────
 
-echo "Testing Homebrew formula..."
+echo "Verifying Homebrew formula..."
 
-cp "$FORMULA" "$TAP_DIR/Formula/prj.rb"
-
-trap 'brew uninstall prj 2>/dev/null || true' EXIT
-
-brew install --build-from-source "$TAP_NAME/prj"
-info "Installed"
-
-INSTALLED_VERSION="$(prj --version 2>&1 | awk '{print $NF}')"
-if [[ "$INSTALLED_VERSION" != *"$VERSION"* ]]; then
-    error "Version mismatch: expected $VERSION, got $INSTALLED_VERSION"
+# Only url and sha256 may change; everything else was proven by earlier releases.
+FORMULA_CHANGES="$(git diff --numstat -- "$FORMULA" | awk '{print $1" "$2}')"
+if [[ "$FORMULA_CHANGES" != "2 2" ]]; then
+    error "Expected $FORMULA to change exactly url and sha256 (got +/-: ${FORMULA_CHANGES:-none})"
 fi
-info "Version matches: $INSTALLED_VERSION"
+info "Formula changes only url and sha256"
 
-brew test "$TAP_NAME/prj"
-info "brew test passed"
+# Build the release tarball the way the formula's install block does.
+BUILD_DIR="$(mktemp -d)"
+trap 'rm -rf "$BUILD_DIR"' EXIT
+tar -xzf "$TARBALL" -C "$BUILD_DIR" --strip-components 1
+(cd "$BUILD_DIR" && go build -trimpath \
+    -ldflags "-s -w -X github.com/gorodulin/prj/cmd.version=$VERSION" -o bin/prj .)
+info "Built from tarball"
 
+BUILT_VERSION="$("$BUILD_DIR/bin/prj" --version 2>&1)"
+if [[ "$BUILT_VERSION" != *"$VERSION"* ]]; then
+    error "Version mismatch: expected $VERSION, got $BUILT_VERSION"
+fi
+info "Version matches: $BUILT_VERSION"
+
+for shell in bash zsh fish; do
+    "$BUILD_DIR/bin/prj" completion "$shell" >/dev/null || error "prj completion $shell failed"
+done
+info "Completions generate"
+
+rm -rf "$BUILD_DIR"
 trap - EXIT
-brew uninstall prj
-info "Uninstalled"
 
 echo ""
 
@@ -305,6 +318,21 @@ info "Committed packaging updates"
 
 git push origin "$MAIN_BRANCH"
 info "Pushed $MAIN_BRANCH"
+
+# ── Step 15b: Publish formula to the tap ────────────────────────
+
+TAP_SHA="$(gh api "repos/$TAP_REPO/contents/$TAP_FORMULA" --jq '.sha')"
+if [[ "$(gh api -H "Accept: application/vnd.github.raw" "repos/$TAP_REPO/contents/$TAP_FORMULA")" == "$(cat "$FORMULA")" ]]; then
+    warn "Tap formula already at $VERSION — skipping"
+else
+    gh api "repos/$TAP_REPO/contents/$TAP_FORMULA" -X PUT \
+        -f message="Update prj to $VERSION" \
+        -f content="$(base64 < "$FORMULA")" \
+        -f sha="$TAP_SHA" \
+        -f branch="main" --silent \
+        || error "Failed to publish formula to $TAP_REPO"
+    info "Published formula to $TAP_REPO"
+fi
 
 echo ""
 
@@ -351,11 +379,7 @@ echo "Done! Release $TAG is ready and pushed."
 echo ""
 echo "Remaining manual steps:"
 echo ""
-echo "  1. Push Homebrew formula:"
-echo "     cd $TAP_DIR"
-echo "     git add Formula/prj.rb"
-echo "     git commit -m \"Update prj to $VERSION\""
-echo "     git push"
+echo "  1. Check the tap's CI run: https://github.com/$TAP_REPO/actions"
 echo ""
 echo "  2. Submit MacPorts Portfile:"
 echo "     cp $PORTFILE <macports-ports-fork>/devel/prj/Portfile"
