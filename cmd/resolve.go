@@ -97,3 +97,12 @@ func resolveProject(id string, cfg config.Config, hasLocalFolder bool) project.P
 
 	return p
 }
+
+// resolveProjects resolves each ID in order (see resolveProject).
+func resolveProjects(ids []string, cfg config.Config, localSet map[string]bool) []project.Project {
+	projects := make([]project.Project, 0, len(ids))
+	for _, id := range ids {
+		projects = append(projects, resolveProject(id, cfg, localSet[id]))
+	}
+	return projects
+}

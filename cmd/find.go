@@ -5,7 +5,6 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/gorodulin/prj/internal/config"
-	"github.com/gorodulin/prj/internal/project"
 	"github.com/gorodulin/prj/internal/text"
 )
 
@@ -26,11 +25,8 @@ project carrying all the given tags is shown.`,
 
 func init() {
 	rootCmd.AddCommand(findCmd)
-	findCmd.Flags().StringP("format", "f", "", `output format: json, jsonl, or Go template (e.g. "{{.ID}}\t{{.Title}}")`)
 	findCmd.Flags().String("tags", "", "filter by tags (comma-separated, AND logic)")
-	findCmd.Flags().Bool("json", false, "shorthand for --format json")
-	findCmd.Flags().Bool("jsonl", false, "shorthand for --format jsonl")
-	findCmd.MarkFlagsMutuallyExclusive("format", "json", "jsonl")
+	addOutputFormatFlags(findCmd)
 }
 
 // requireQueryOrTags rejects a bare "prj find", which would list everything.
@@ -59,10 +55,7 @@ func runFind(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	var projects []project.Project
-	for _, id := range ids.all {
-		projects = append(projects, resolveProject(id, cfg, ids.localSet[id]))
-	}
+	projects := resolveProjects(ids.all, cfg, ids.localSet)
 
 	tagsRaw, _ := cmd.Flags().GetString("tags")
 	filterTags := text.ParseTags(tagsRaw)

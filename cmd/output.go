@@ -10,6 +10,15 @@ import (
 	"github.com/gorodulin/prj/internal/project"
 )
 
+// addOutputFormatFlags registers --format, --json and --jsonl on a
+// project-list command; resolveOutputFormat reads them.
+func addOutputFormatFlags(cmd *cobra.Command) {
+	cmd.Flags().StringP("format", "f", "", `output format: json, jsonl, or Go template (e.g. "{{.ID}}\t{{.Title}}")`)
+	cmd.Flags().Bool("json", false, "shorthand for --format json")
+	cmd.Flags().Bool("jsonl", false, "shorthand for --format jsonl")
+	cmd.MarkFlagsMutuallyExclusive("format", "json", "jsonl")
+}
+
 // resolveOutputFormat returns the output format string for a project-list
 // command. Priority: --json/--jsonl shorthands > explicit --format flag >
 // list_format config > empty (format.DefaultFormat applies downstream).

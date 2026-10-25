@@ -5,7 +5,6 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/gorodulin/prj/internal/config"
-	"github.com/gorodulin/prj/internal/project"
 	"github.com/gorodulin/prj/internal/text"
 )
 
@@ -24,16 +23,13 @@ before terms that start with a dash (e.g. prj list -- -foo).`,
 func init() {
 	rootCmd.AddCommand(listCmd)
 	listCmd.Flags().BoolP("all", "a", false, "include metadata-only projects (not present locally)")
-	listCmd.Flags().StringP("format", "f", "", `output format: json, jsonl, or Go template (e.g. "{{.ID}}\t{{.Title}}")`)
 	listCmd.Flags().StringP("query", "q", "", "additional query term (same matching as positional terms)")
 	listCmd.Flags().String("tags", "", "filter by tags (comma-separated, AND logic)")
 	listCmd.Flags().String("tag", "", "deprecated alias for --tags")
 	_ = listCmd.Flags().MarkDeprecated("tag", "use --tags instead")
 	listCmd.Flags().Bool("missing", false, "show only metadata-only projects (not present locally)")
-	listCmd.Flags().Bool("json", false, "shorthand for --format json")
-	listCmd.Flags().Bool("jsonl", false, "shorthand for --format jsonl")
+	addOutputFormatFlags(listCmd)
 	listCmd.MarkFlagsMutuallyExclusive("all", "missing")
-	listCmd.MarkFlagsMutuallyExclusive("format", "json", "jsonl")
 	listCmd.MarkFlagsMutuallyExclusive("tags", "tag")
 }
 
@@ -58,26 +54,16 @@ func runList(cmd *cobra.Command, args []string) error {
 
 	// Determine which IDs to display.
 	var displayIDs []string
-	for _, id := range ids.all {
-		switch {
-		case showMissing:
-			if !ids.localSet[id] {
-				displayIDs = append(displayIDs, id)
-			}
-		case showAll:
-			displayIDs = append(displayIDs, id)
-		default:
-			if ids.localSet[id] {
-				displayIDs = append(displayIDs, id)
-			}
-		}
+	switch {
+	case showMissing:
+		displayIDs = ids.missingOnly()
+	case showAll:
+		displayIDs = ids.all
+	default:
+		displayIDs = ids.localOnly()
 	}
 
-	// Collect projects.
-	var projects []project.Project
-	for _, id := range displayIDs {
-		projects = append(projects, resolveProject(id, cfg, ids.localSet[id]))
-	}
+	projects := resolveProjects(displayIDs, cfg, ids.localSet)
 
 	// Apply filters.
 	terms := append([]string{}, args...)
@@ -94,15 +80,23 @@ func runList(cmd *cobra.Command, args []string) error {
 	if len(projects) == 0 {
 		if len(terms) > 0 || len(filterTags) > 0 {
 			fmt.Println("No projects match the given filter.")
-		} else if showMissing {
-			fmt.Println("No metadata-only projects found. All projects are available locally.")
-		} else if !showAll && len(ids.all) > 0 {
-			fmt.Println("No local projects found. Use --all to include metadata-only projects.")
 		} else {
-			fmt.Println("No projects found.")
+			printNoProjects(ids, showAll, showMissing)
 		}
 		return nil
 	}
 
 	return writeProjectList(projects, formatStr, cfg)
+}
+
+// printNoProjects explains an empty, unfiltered project list.
+func printNoProjects(ids idSets, showAll, showMissing bool) {
+	switch {
+	case showMissing:
+		fmt.Println("No metadata-only projects found. All projects are available locally.")
+	case !showAll && len(ids.all) > 0:
+		fmt.Println("No local projects found. Use --all to include metadata-only projects.")
+	default:
+		fmt.Println("No projects found.")
+	}
 }

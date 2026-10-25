@@ -40,6 +40,28 @@ func collectIDs(cfg config.Config) (idSets, error) {
 	}, nil
 }
 
+// localOnly returns the IDs that have a local project folder, in order.
+func (ids idSets) localOnly() []string {
+	var result []string
+	for _, id := range ids.all {
+		if ids.localSet[id] {
+			result = append(result, id)
+		}
+	}
+	return result
+}
+
+// missingOnly returns the IDs without a local project folder, in order.
+func (ids idSets) missingOnly() []string {
+	var result []string
+	for _, id := range ids.all {
+		if !ids.localSet[id] {
+			result = append(result, id)
+		}
+	}
+	return result
+}
+
 // unionSorted merges two ID slices into a deduplicated result sorted in
 // creation order (see project.CompareIDs).
 func unionSorted(a, b []string) []string {
