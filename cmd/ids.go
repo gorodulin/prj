@@ -2,7 +2,7 @@ package cmd
 
 import (
 	"fmt"
-	"sort"
+	"slices"
 
 	"github.com/gorodulin/prj/internal/config"
 	"github.com/gorodulin/prj/internal/project"
@@ -10,7 +10,7 @@ import (
 
 // idSets holds the results of scanning both project and metadata folders.
 type idSets struct {
-	all      []string       // deduplicated, sorted union
+	all      []string       // deduplicated union in creation order
 	localSet map[string]bool // IDs with a local project folder
 }
 
@@ -40,7 +40,8 @@ func collectIDs(cfg config.Config) (idSets, error) {
 	}, nil
 }
 
-// unionSorted merges two string slices into a deduplicated sorted result.
+// unionSorted merges two ID slices into a deduplicated result sorted in
+// creation order (see project.CompareIDs).
 func unionSorted(a, b []string) []string {
 	seen := make(map[string]bool, len(a)+len(b))
 	for _, s := range a {
@@ -54,6 +55,6 @@ func unionSorted(a, b []string) []string {
 	for s := range seen {
 		result = append(result, s)
 	}
-	sort.Strings(result)
+	slices.SortFunc(result, project.CompareIDs)
 	return result
 }

@@ -12,6 +12,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   project, local or metadata-only, that has all the given tags. A bare
   `prj find` is still an error.
 
+### Fixed
+- `prj list` and `prj find` sort `aYYYYMMDDb` IDs in creation order when a
+  day has more than 26 projects: `p20260402z` now comes before
+  `p20260402aa`.
+
 ## [0.11.1] - 2026-09-24
 
 ### Fixed
