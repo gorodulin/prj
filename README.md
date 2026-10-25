@@ -268,6 +268,10 @@ tags: [cli, golang]
 # My Project
 ```
 
+Tags should repeat the title's meaningful words, in canonical form
+(`motorcycle`, not `Motorcycles`). Tag filters read only tags, never the
+title.
+
 ### `prj edit [<project-id>...]`
 
 Edit project metadata (title and/or tags). Accepts one or more IDs.
