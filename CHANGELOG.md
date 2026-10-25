@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+- `prj last [<N>]` lists the N most recent projects (default 1), oldest
+  first, in the same output formats as `prj list`. Local projects only
+  unless `-a`/`--all` is given.
+
 ### Changed
 - `prj find --tags <tags>` works without query terms and shows every
   project, local or metadata-only, that has all the given tags. A bare

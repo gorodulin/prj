@@ -240,6 +240,20 @@ search never misses a project just because its folder isn't on this
 machine. Non-local hits are marked in the default output format. At least
 one query term or `--tags` is required.
 
+### `prj last [<N>]`
+
+List the N most recent projects (default 1), oldest first.
+
+```bash
+prj last                    # the newest local project
+prj last 5                  # the five newest
+prj last 5 -a               # include metadata-only projects
+prj last 5 --json           # same output formats as list
+```
+
+Recency is the creation order encoded in project IDs, so `prj last 5` shows
+the same projects as `prj list | tail -n 5`, but keeps `--json` output valid.
+
 ### `prj new`
 
 Create a new project with an auto-generated ID.
