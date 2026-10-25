@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Changed
+- `prj find --tags <tags>` works without query terms and shows every
+  project, local or metadata-only, that has all the given tags. A bare
+  `prj find` is still an error.
+
 ## [0.11.1] - 2026-09-24
 
 ### Fixed

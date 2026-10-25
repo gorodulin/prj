@@ -37,19 +37,30 @@ func TestFind_RequiresQueryTerm(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error for find without query terms, got nil")
 	}
-	if !strings.Contains(err.Error(), "requires at least 1 arg") {
-		t.Errorf("error %q is not cobra's minimum-args error", err.Error())
+	if !strings.Contains(err.Error(), "requires at least one query term or --tags") {
+		t.Errorf("unexpected error: %q", err.Error())
 	}
 }
 
-func TestFind_TagsOnlyRejected(t *testing.T) {
+func TestFind_EmptyTagsRejected(t *testing.T) {
 	_, cfgPath := newFindTestConfig(t)
-	_, err := runFindCommand(t, []string{"find", "--config", cfgPath, "--tags", "moto"})
+	_, err := runFindCommand(t, []string{"find", "--config", cfgPath, "--tags", " , "})
 	if err == nil {
-		t.Fatal("expected error for find with --tags but no query terms, got nil")
+		t.Fatal("expected error for find with blank --tags and no query terms, got nil")
 	}
-	if !strings.Contains(err.Error(), "requires at least 1 arg") {
-		t.Errorf("error %q is not cobra's minimum-args error", err.Error())
+}
+
+func TestFind_TagsOnly(t *testing.T) {
+	_, cfgPath := newFindTestConfig(t)
+	out, err := runFindCommand(t, []string{"find", "--config", cfgPath, "--no-color", "--tags", "moto"})
+	if err != nil {
+		t.Fatalf("find: %v", err)
+	}
+	if !strings.Contains(out, "p20260103c") {
+		t.Errorf("output missing tagged project p20260103c: %q", out)
+	}
+	if strings.Contains(out, "p20260101a") || strings.Contains(out, "p20260102b") {
+		t.Errorf("--tags alone must filter to tagged projects, got: %q", out)
 	}
 }
 

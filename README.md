@@ -222,7 +222,7 @@ prj list -f json | jq -r '.[] | select(.tags | index("golang")) | .id'
 prj list -f '{{.ID}}' | xargs -I{} prj path {}
 ```
 
-### `prj find <query-term> [<query-term>...]`
+### `prj find [<query-term>...] [--tags <tags>]`
 
 Search all known projects — local and metadata-only — by query terms.
 
@@ -230,6 +230,7 @@ Search all known projects — local and metadata-only — by query terms.
 prj find zfs                # search everything by substring
 prj find moto bike scooter  # multiple terms: match any (OR logic)
 prj find zfs --tags wip     # tags AND with the query
+prj find --tags wip         # tags only, across all projects
 prj find zfs -f jsonl       # same output formats as list
 ```
 
@@ -237,8 +238,7 @@ Same matching as `prj list` (case-insensitive substrings across ID, title,
 tags; OR across terms), but always includes metadata-only projects, so a
 search never misses a project just because its folder isn't on this
 machine. Non-local hits are marked in the default output format. At least
-one query term is required; for tag-only filtering across all projects use
-`prj list -a --tags <tags>`.
+one query term or `--tags` is required.
 
 ### `prj new`
 
