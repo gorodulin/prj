@@ -1,9 +1,11 @@
 package cmd
 
 import (
+	"encoding/json"
 	"io"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -417,5 +419,96 @@ func TestList_TagsTagMutuallyExclusive(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "none of the others can be") {
 		t.Errorf("error %q is not cobra's mutual-exclusion error", err.Error())
+	}
+}
+
+func TestList_HideTags(t *testing.T) {
+	cfgPath := newHideTagsTestConfig(t)
+
+	tests := []struct {
+		name string
+		args []string
+		want []string
+	}{
+		{"hidden by default", nil, []string{"p20260101a"}},
+		{"--local equals default", []string{"--local"}, []string{"p20260101a"}},
+		{"--no-hide shows hidden local", []string{"--no-hide"}, []string{"p20260101a", "p20260102a", "p20260103a"}},
+		{"--all shows everything", []string{"--all"}, []string{"p20260101a", "p20260102a", "p20260103a", "p20260104a", "p20260105a"}},
+		{"--missing still hides", []string{"--missing"}, []string{"p20260105a"}},
+		{"--missing --no-hide", []string{"--missing", "--no-hide"}, []string{"p20260104a", "p20260105a"}},
+		{"--tags archived lifts hiding", []string{"--tags", "archived"}, []string{"p20260102a"}},
+		{"--tags cli does not un-hide archived", []string{"--tags", "cli"}, []string{"p20260101a"}},
+		{"query term does not lift hiding", []string{"0102"}, nil},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			args := append([]string{"list", "--config", cfgPath, "--no-color", "-f", "{{.ID}}"}, tt.args...)
+			stdout, _, err := runCommandCapture(t, listCmd, args)
+			if err != nil {
+				t.Fatalf("list %v: %v", tt.args, err)
+			}
+			got := strings.Fields(stdout)
+			if tt.want == nil {
+				if !strings.Contains(stdout, "No projects match the given filter.") {
+					t.Errorf("expected no-match message, got %q", stdout)
+				}
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("got %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestList_ScopeFlagsMutuallyExclusive(t *testing.T) {
+	cfgPath := newHideTagsTestConfig(t)
+	for _, pair := range [][]string{{"--local", "--missing"}, {"--local", "--all"}, {"--missing", "--all"}} {
+		args := append([]string{"list", "--config", cfgPath}, pair...)
+		_, _, err := runCommandCapture(t, listCmd, args)
+		if err == nil || !strings.Contains(err.Error(), "none of the others can be") {
+			t.Errorf("list %v: got error %v, want mutual-exclusion error", pair, err)
+		}
+	}
+}
+
+// TestList_HideTagsJSONStdoutClean checks that hiding never leaks into
+// stdout: the JSON parses and contains only visible projects, and the hint
+// (TTY-only) stays off a piped stderr.
+func TestList_HideTagsJSONStdoutClean(t *testing.T) {
+	cfgPath := newHideTagsTestConfig(t)
+	stdout, stderr, err := runCommandCapture(t, listCmd, []string{"list", "--config", cfgPath, "--json"})
+	if err != nil {
+		t.Fatalf("list --json: %v", err)
+	}
+	var items []map[string]any
+	if err := json.Unmarshal([]byte(stdout), &items); err != nil {
+		t.Fatalf("stdout is not clean JSON: %v\n%s", err, stdout)
+	}
+	if len(items) != 1 || items[0]["id"] != "p20260101a" {
+		t.Errorf("got %v, want only p20260101a", items)
+	}
+	if stderr != "" {
+		t.Errorf("stderr should be empty on a pipe, got %q", stderr)
+	}
+}
+
+func TestList_AllHiddenMessage(t *testing.T) {
+	cfg, tmp := newEditTestCfg(t)
+	cfg.HideTags = []string{"archived"}
+	mustMkProjectDir(t, cfg, "p20260101a")
+	mustSeedSnapshot(t, cfg, "p20260101a", []string{"archived"})
+	cfgPath := filepath.Join(tmp, "config.json")
+	if err := config.Save(cfg, cfgPath); err != nil {
+		t.Fatalf("save config: %v", err)
+	}
+
+	out, err := runListCommand(t, []string{"list", "--config", cfgPath, "--no-color"})
+	if err != nil {
+		t.Fatalf("list: %v", err)
+	}
+	if want := "No visible projects. 1 hidden by hide_tags; use --no-hide."; !strings.Contains(out, want) {
+		t.Errorf("got %q, want %q", out, want)
 	}
 }

@@ -2,10 +2,12 @@ package cmd
 
 import (
 	"fmt"
+	"os"
 	"strconv"
 
 	"github.com/spf13/cobra"
 	"github.com/gorodulin/prj/internal/config"
+	"github.com/gorodulin/prj/internal/project"
 )
 
 var lastCmd = &cobra.Command{
@@ -15,14 +17,17 @@ var lastCmd = &cobra.Command{
 
 Recency is the creation order encoded in project IDs, so "prj last 5" shows
 the same projects as "prj list | tail -n 5" in any output format. Only local
-projects are considered unless --all is given.`,
+projects are considered unless --missing or --all is given.
+
+Projects tagged with any tag in the hide_tags config are skipped, so the N
+most recent visible projects are shown; --no-hide or --all includes them.`,
 	Args: cobra.MaximumNArgs(1),
 	RunE: runLast,
 }
 
 func init() {
 	rootCmd.AddCommand(lastCmd)
-	lastCmd.Flags().BoolP("all", "a", false, "include metadata-only projects (not present locally)")
+	addScopeFlags(lastCmd)
 	addOutputFormatFlags(lastCmd)
 }
 
@@ -37,7 +42,7 @@ func runLast(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("load config: %w", err)
 	}
 
-	showAll, _ := cmd.Flags().GetBool("all")
+	scope := resolveScope(cmd, presenceLocal)
 	formatStr := resolveOutputFormat(cmd, cfg)
 
 	if err := requireConfig(cfg, "projects_folder"); err != nil {
@@ -49,19 +54,28 @@ func runLast(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	candidates := ids.localOnly()
-	if showAll {
-		candidates = ids.all
-	}
+	candidates := ids.byPresence(scope.presence)
+	hideTags := scope.activeHideTags(cfg.HideTags)
 
-	// Trim before resolving so only N projects' metadata is read.
-	projects := resolveProjects(lastN(candidates, n), cfg, ids.localSet)
+	var projects []project.Project
+	var hiddenCount int
+	if len(hideTags) == 0 {
+		// Trim before resolving so only N projects' metadata is read.
+		projects = resolveProjects(lastN(candidates, n), cfg, ids.localSet)
+	} else {
+		resolve := func(id string) project.Project { return resolveProject(id, cfg, ids.localSet[id]) }
+		projects, hiddenCount = lastNVisible(candidates, n, resolve, hideTags)
+	}
 	if len(projects) == 0 {
-		printNoProjects(ids, showAll, false)
+		printNoProjects(ids, scope, hiddenCount)
 		return nil
 	}
 
-	return writeProjectList(projects, formatStr, cfg)
+	if err := writeProjectList(projects, formatStr, cfg); err != nil {
+		return err
+	}
+	printHiddenHint(os.Stderr, hiddenCount)
+	return nil
 }
 
 // parseLastCount returns the N argument of "prj last", defaulting to 1.
@@ -82,4 +96,27 @@ func lastN(ids []string, n int) []string {
 		return ids
 	}
 	return ids[len(ids)-n:]
+}
+
+// lastNVisible walks ids newest to oldest, resolving one at a time, until n
+// projects not hidden by hideTags are collected. It returns them oldest
+// first, plus how many hidden projects were skipped along the way. Hidden
+// projects older than the n-th visible one are not resolved or counted.
+func lastNVisible(ids []string, n int, resolve func(id string) project.Project, hideTags []string) ([]project.Project, int) {
+	var newestFirst []project.Project
+	hiddenCount := 0
+	for i := len(ids) - 1; i >= 0 && len(newestFirst) < n; i-- {
+		p := resolve(ids[i])
+		if isHiddenByTags(p, hideTags, nil) {
+			hiddenCount++
+			continue
+		}
+		newestFirst = append(newestFirst, p)
+	}
+
+	oldestFirst := make([]project.Project, len(newestFirst))
+	for i, p := range newestFirst {
+		oldestFirst[len(newestFirst)-1-i] = p
+	}
+	return oldestFirst, hiddenCount
 }

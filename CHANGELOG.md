@@ -5,6 +5,29 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+- `hide_tags` config key: projects carrying any of these tags are hidden
+  from `prj list`, `prj find`, and `prj last`. Set it with a comma-separated
+  list (`prj config set hide_tags archived,done`); it is stored as a JSON
+  array. Commands that take a project ID are not affected.
+- `--no-hide` on `prj list`, `prj find`, and `prj last` shows hidden
+  projects. An explicit `--tags` lifts hiding for the tags it names
+  (`prj list --tags archived`).
+- `--local` and `--missing` on all three commands select projects with or
+  without a local folder (`prj find` and `prj last` gain both; `prj list`
+  gains `--local`). `--local`, `--missing`, and `--all` are mutually
+  exclusive.
+- When projects were hidden and stderr is a terminal, a hint with the
+  hidden count is printed to stderr.
+
+### Changed
+- `--all`/`-a` on `prj list`, `prj find`, and `prj last` now also shows
+  projects hidden by `hide_tags` (it implies `--no-hide`). `prj find` gains
+  `--all` with only that effect, since it already searches metadata-only
+  projects.
+
 ## [0.12.0] - 2026-10-25
 
 ### Added

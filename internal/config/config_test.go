@@ -3,6 +3,7 @@ package config
 import (
 	"os"
 	"path/filepath"
+	"reflect"
 	"testing"
 )
 
@@ -59,6 +60,34 @@ func TestLoadAndSaveRoundTrip(t *testing.T) {
 	}
 	if loaded.ProjectIDType != original.ProjectIDType {
 		t.Errorf("ProjectIDType = %q, want %q", loaded.ProjectIDType, original.ProjectIDType)
+	}
+}
+
+func TestLoadNormalizesHideTags(t *testing.T) {
+	tests := []struct {
+		name string
+		json string
+		want []string
+	}{
+		{"unset", `{}`, nil},
+		{"already normalized", `{"hide_tags": ["archived", "done"]}`, []string{"archived", "done"}},
+		{"mixed case and hash", `{"hide_tags": ["Archived", "#done", " RETIRED "]}`, []string{"archived", "done", "retired"}},
+		{"duplicates and blanks", `{"hide_tags": ["done", "#Done", ""]}`, []string{"done"}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			path := filepath.Join(t.TempDir(), "config.json")
+			os.WriteFile(path, []byte(tt.json), 0644)
+
+			cfg, err := Load(path)
+			if err != nil {
+				t.Fatalf("Load: %v", err)
+			}
+			if !reflect.DeepEqual(cfg.HideTags, tt.want) {
+				t.Errorf("HideTags = %#v, want %#v", cfg.HideTags, tt.want)
+			}
+		})
 	}
 }
 

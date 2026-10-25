@@ -1,9 +1,12 @@
 package config
 
 import (
+	"encoding/json"
 	"fmt"
 	"strconv"
 	"strings"
+
+	"github.com/gorodulin/prj/internal/text"
 )
 
 // Field describes a single config field for programmatic access.
@@ -13,6 +16,10 @@ type Field struct {
 	Default string                      // runtime default, empty if none
 	Get     func(*Config) string        // returns string representation
 	Set     func(*Config, string) error // parses and sets
+
+	// EncodeJSON converts a non-empty CLI value to its JSON representation
+	// for SetField. Nil means the value is stored as a JSON string.
+	EncodeJSON func(value string) (json.RawMessage, error)
 }
 
 // Fields lists all config fields in declaration order.
@@ -93,12 +100,32 @@ var Fields = []Field{
 			c.RetentionDays = n
 			return nil
 		},
+		EncodeJSON: func(v string) (json.RawMessage, error) {
+			n, err := strconv.Atoi(v)
+			if err != nil {
+				return nil, fmt.Errorf("retention_days must be an integer (got %q)", v)
+			}
+			return json.RawMessage(strconv.Itoa(n)), nil
+		},
 	},
 	{
 		// Keep Default in sync with config.DefaultColor.
 		Key: "color", Hint: "auto|always|never", Default: "auto",
 		Get: func(c *Config) string { return c.Color },
 		Set: func(c *Config, v string) error { c.Color = v; return nil },
+	},
+	{
+		// Comma-separated on the CLI, a JSON array in the file.
+		Key: "hide_tags", Hint: "archived,done",
+		Get: func(c *Config) string { return strings.Join(c.HideTags, ",") },
+		Set: func(c *Config, v string) error { c.HideTags = text.ParseTags(v); return nil },
+		EncodeJSON: func(v string) (json.RawMessage, error) {
+			tags := text.ParseTags(v)
+			if tags == nil {
+				tags = []string{} // e.g. " , ": store [] rather than null
+			}
+			return json.Marshal(tags)
+		},
 	},
 }
 
@@ -119,6 +146,16 @@ func FieldKeys() []string {
 		keys[i] = f.Key
 	}
 	return keys
+}
+
+// encodeFieldValue returns the JSON representation of a CLI value for key,
+// using the field's EncodeJSON when it has one. Unknown keys and fields
+// without an encoder are stored as JSON strings.
+func encodeFieldValue(key, value string) (json.RawMessage, error) {
+	if f, ok := FieldByKey(key); ok && f.EncodeJSON != nil {
+		return f.EncodeJSON(value)
+	}
+	return json.Marshal(value)
 }
 
 // IsEmpty reports whether the field value is the zero/unset value for the given config.

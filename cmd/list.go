@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"os"
 
 	"github.com/spf13/cobra"
 	"github.com/gorodulin/prj/internal/config"
@@ -15,21 +16,23 @@ var listCmd = &cobra.Command{
 
 Query terms are matched as case-insensitive substrings against project ID,
 title, and tags; a project is shown if any term matches (OR logic). Use "--"
-before terms that start with a dash (e.g. prj list -- -foo).`,
+before terms that start with a dash (e.g. prj list -- -foo).
+
+Projects tagged with any tag in the hide_tags config are hidden; --no-hide
+or --all shows them, and --tags lifts hiding for the tags it names (e.g.
+--tags archived shows archived projects).`,
 	Args: cobra.ArbitraryArgs,
 	RunE: runList,
 }
 
 func init() {
 	rootCmd.AddCommand(listCmd)
-	listCmd.Flags().BoolP("all", "a", false, "include metadata-only projects (not present locally)")
+	addScopeFlags(listCmd)
 	listCmd.Flags().StringP("query", "q", "", "additional query term (same matching as positional terms)")
 	listCmd.Flags().String("tags", "", "filter by tags (comma-separated, AND logic)")
 	listCmd.Flags().String("tag", "", "deprecated alias for --tags")
 	_ = listCmd.Flags().MarkDeprecated("tag", "use --tags instead")
-	listCmd.Flags().Bool("missing", false, "show only metadata-only projects (not present locally)")
 	addOutputFormatFlags(listCmd)
-	listCmd.MarkFlagsMutuallyExclusive("all", "missing")
 	listCmd.MarkFlagsMutuallyExclusive("tags", "tag")
 }
 
@@ -39,8 +42,7 @@ func runList(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("load config: %w", err)
 	}
 
-	showAll, _ := cmd.Flags().GetBool("all")
-	showMissing, _ := cmd.Flags().GetBool("missing")
+	scope := resolveScope(cmd, presenceLocal)
 	formatStr := resolveOutputFormat(cmd, cfg)
 
 	if err := requireConfig(cfg, "projects_folder"); err != nil {
@@ -52,18 +54,7 @@ func runList(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	// Determine which IDs to display.
-	var displayIDs []string
-	switch {
-	case showMissing:
-		displayIDs = ids.missingOnly()
-	case showAll:
-		displayIDs = ids.all
-	default:
-		displayIDs = ids.localOnly()
-	}
-
-	projects := resolveProjects(displayIDs, cfg, ids.localSet)
+	projects := resolveProjects(ids.byPresence(scope.presence), cfg, ids.localSet)
 
 	// Apply filters.
 	terms := append([]string{}, args...)
@@ -75,26 +66,36 @@ func runList(cmd *cobra.Command, args []string) error {
 		tagsRaw, _ = cmd.Flags().GetString("tag")
 	}
 	filterTags := text.ParseTags(tagsRaw)
+
+	// Hide before filtering: explicit --tags lift hiding for the tags named.
+	projects, hiddenCount := partitionHidden(projects, scope.activeHideTags(cfg.HideTags), filterTags)
 	projects = filterProjects(projects, terms, filterTags)
 
 	if len(projects) == 0 {
 		if len(terms) > 0 || len(filterTags) > 0 {
 			fmt.Println("No projects match the given filter.")
+			printHiddenHint(os.Stderr, hiddenCount)
 		} else {
-			printNoProjects(ids, showAll, showMissing)
+			printNoProjects(ids, scope, hiddenCount)
 		}
 		return nil
 	}
 
-	return writeProjectList(projects, formatStr, cfg)
+	if err := writeProjectList(projects, formatStr, cfg); err != nil {
+		return err
+	}
+	printHiddenHint(os.Stderr, hiddenCount)
+	return nil
 }
 
 // printNoProjects explains an empty, unfiltered project list.
-func printNoProjects(ids idSets, showAll, showMissing bool) {
+func printNoProjects(ids idSets, scope listScope, hiddenCount int) {
 	switch {
-	case showMissing:
+	case hiddenCount > 0:
+		fmt.Printf("No visible projects. %d hidden by hide_tags; use --no-hide.\n", hiddenCount)
+	case scope.presence == presenceMissing:
 		fmt.Println("No metadata-only projects found. All projects are available locally.")
-	case !showAll && len(ids.all) > 0:
+	case scope.presence == presenceLocal && len(ids.all) > 0:
 		fmt.Println("No local projects found. Use --all to include metadata-only projects.")
 	default:
 		fmt.Println("No projects found.")

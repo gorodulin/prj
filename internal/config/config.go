@@ -11,6 +11,7 @@ import (
 
 	"github.com/gorodulin/prj/internal/platform"
 	"github.com/gorodulin/prj/internal/project"
+	"github.com/gorodulin/prj/internal/text"
 )
 
 const appName = "prj"
@@ -64,6 +65,7 @@ type Config struct {
 	MachineID       string `json:"machine_id,omitempty"`
 	RetentionDays   int    `json:"retention_days,omitempty"`
 	Color             string `json:"color,omitempty"`
+	HideTags          []string `json:"hide_tags,omitempty"` // projects with any of these tags are hidden from list/find/last
 
 	explicitKeys map[string]bool // keys present in the JSON file (not defaults)
 }
@@ -134,6 +136,10 @@ func Load(path string) (Config, error) {
 	if cfg.ProjectIDPrefix == "" {
 		cfg.ProjectIDPrefix = DefaultProjectIDPrefix
 	}
+
+	// Normalize hide_tags so hand-edited entries ("Archived", "#done")
+	// compare exactly against project tags, which are already normalized.
+	cfg.HideTags = text.NormalizeTags(cfg.HideTags)
 
 	// Default color mode (auto-detect TTY).
 	if cfg.Color == "" {
@@ -280,16 +286,11 @@ func SetField(path, key, value string) error {
 	if value == "" {
 		delete(raw, key)
 	} else {
-		encoded, err := json.Marshal(value)
+		encoded, err := encodeFieldValue(key, value)
 		if err != nil {
-			return fmt.Errorf("encode value: %w", err)
+			return fmt.Errorf("encode %s: %w", key, err)
 		}
 		raw[key] = encoded
-	}
-
-	// Special handling: retention_days is an integer in JSON.
-	if key == "retention_days" && value != "" {
-		raw[key] = json.RawMessage(value)
 	}
 
 	// Unmarshal into Config to validate.

@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/gorodulin/prj/internal/config"
+	"github.com/gorodulin/prj/internal/project"
 )
 
 // newLastTestConfig builds a fixture with three local projects, one of
@@ -127,5 +128,81 @@ func TestLastN(t *testing.T) {
 		if got := lastN(ids, tt.n); !reflect.DeepEqual(got, tt.want) {
 			t.Errorf("lastN(%d) = %v, want %v", tt.n, got, tt.want)
 		}
+	}
+}
+
+func TestLast_HideTags(t *testing.T) {
+	cfgPath := newHideTagsTestConfig(t)
+
+	tests := []struct {
+		name string
+		args []string
+		want []string
+	}{
+		{"skips hidden newest", nil, []string{"p20260101a"}},
+		{"--no-hide returns hidden newest", []string{"--no-hide"}, []string{"p20260103a"}},
+		{"N exceeds visible count", []string{"5"}, []string{"p20260101a"}},
+		{"--no-hide N", []string{"2", "--no-hide"}, []string{"p20260102a", "p20260103a"}},
+		{"--all includes hidden and metadata-only", []string{"2", "--all"}, []string{"p20260104a", "p20260105a"}},
+		{"--missing still hides", []string{"2", "--missing"}, []string{"p20260105a"}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			args := append([]string{"last", "--config", cfgPath, "--no-color", "-f", "{{.ID}}"}, tt.args...)
+			stdout, _, err := runCommandCapture(t, lastCmd, args)
+			if err != nil {
+				t.Fatalf("last %v: %v", tt.args, err)
+			}
+			if got := strings.Fields(stdout); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("got %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestLastNVisible(t *testing.T) {
+	tagsByID := map[string][]string{
+		"a": {"cli"},
+		"b": {"archived"},
+		"c": nil,
+		"d": {"done"},
+		"e": {"archived", "cli"},
+	}
+	ids := []string{"a", "b", "c", "d", "e"}
+	hideTags := []string{"archived", "done"}
+
+	tests := []struct {
+		name         string
+		n            int
+		hideTags     []string
+		want         []string
+		wantHidden   int
+		wantResolved int
+	}{
+		{"one skips hidden newest", 1, hideTags, []string{"c"}, 2, 3},
+		{"two", 2, hideTags, []string{"a", "c"}, 3, 5},
+		{"N exceeds visible", 10, hideTags, []string{"a", "c"}, 3, 5},
+		{"no hide tags", 2, nil, []string{"d", "e"}, 0, 2},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			resolved := 0
+			resolve := func(id string) project.Project {
+				resolved++
+				return project.Project{ID: id, Tags: tagsByID[id]}
+			}
+			got, hiddenCount := lastNVisible(ids, tt.n, resolve, tt.hideTags)
+			if gotIDs := projectIDs(got); !reflect.DeepEqual(gotIDs, tt.want) {
+				t.Errorf("got %v, want %v", gotIDs, tt.want)
+			}
+			if hiddenCount != tt.wantHidden {
+				t.Errorf("hiddenCount = %d, want %d", hiddenCount, tt.wantHidden)
+			}
+			if resolved != tt.wantResolved {
+				t.Errorf("resolved %d projects, want %d (walk must stop once N are collected)", resolved, tt.wantResolved)
+			}
+		})
 	}
 }

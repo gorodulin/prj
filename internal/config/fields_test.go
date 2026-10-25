@@ -1,6 +1,7 @@
 package config
 
 import (
+	"bytes"
 	"encoding/json"
 	"os"
 	"path/filepath"
@@ -16,8 +17,8 @@ func TestFieldsCount(t *testing.T) {
 	if len(Fields) > numStructFields {
 		t.Errorf("Fields has %d entries, but Config only has %d fields", len(Fields), numStructFields)
 	}
-	if len(Fields) != 14 {
-		t.Errorf("Fields has %d entries, want 14", len(Fields))
+	if len(Fields) != 15 {
+		t.Errorf("Fields has %d entries, want 15", len(Fields))
 	}
 }
 
@@ -59,6 +60,7 @@ func TestFieldRoundTrip(t *testing.T) {
 		{"machine_name", "laptop"},
 		{"machine_id", "abc123"},
 		{"retention_days", "30"},
+		{"hide_tags", "archived,done"},
 	}
 
 	for _, tt := range tests {
@@ -114,6 +116,109 @@ func TestSetFieldPreservesRawJSON(t *testing.T) {
 	}
 	if _, ok := raw["projects_folder"]; !ok {
 		t.Error("projects_folder should be preserved in saved file")
+	}
+}
+
+func TestHideTagsSetNormalizes(t *testing.T) {
+	tests := []struct {
+		name  string
+		value string
+		want  string
+	}{
+		{"single", "archived", "archived"},
+		{"sorted and deduped", "done,archived,done", "archived,done"},
+		{"case, hash, spaces", " #Done , ARCHIVED ", "archived,done"},
+		{"empty", "", ""},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			f, _ := FieldByKey("hide_tags")
+			var cfg Config
+			if err := f.Set(&cfg, tt.value); err != nil {
+				t.Fatalf("Set: %v", err)
+			}
+			if got := f.Get(&cfg); got != tt.want {
+				t.Errorf("Get = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
+// TestSetFieldJSONEncoding checks the raw JSON written for each value shape:
+// plain strings, retention_days as a bare integer, hide_tags as an array.
+func TestSetFieldJSONEncoding(t *testing.T) {
+	tests := []struct {
+		name    string
+		key     string
+		value   string
+		wantRaw string
+	}{
+		{"string field", "machine_name", "laptop", `"laptop"`},
+		{"retention_days is an integer", "retention_days", "30", `30`},
+		{"hide_tags is an array", "hide_tags", "done,Archived", `["archived","done"]`},
+		{"hide_tags single tag", "hide_tags", "#retired", `["retired"]`},
+		{"hide_tags blank list", "hide_tags", " , ", `[]`},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			path := filepath.Join(t.TempDir(), "config.json")
+			os.WriteFile(path, []byte(`{}`), 0644)
+
+			if err := SetField(path, tt.key, tt.value); err != nil {
+				t.Fatalf("SetField: %v", err)
+			}
+
+			data, _ := os.ReadFile(path)
+			var raw map[string]json.RawMessage
+			json.Unmarshal(data, &raw)
+
+			var compact bytes.Buffer
+			if err := json.Compact(&compact, raw[tt.key]); err != nil {
+				t.Fatalf("compact %s: %v", tt.key, err)
+			}
+			if got := compact.String(); got != tt.wantRaw {
+				t.Errorf("raw %s = %s, want %s", tt.key, got, tt.wantRaw)
+			}
+		})
+	}
+}
+
+func TestSetFieldRejectsNonIntegerRetentionDays(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "config.json")
+	os.WriteFile(path, []byte(`{}`), 0644)
+
+	if err := SetField(path, "retention_days", "abc"); err == nil {
+		t.Error("expected error for non-integer retention_days")
+	}
+}
+
+func TestSetFieldHideTagsRoundTrip(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "config.json")
+	os.WriteFile(path, []byte(`{"projects_folder": "/tmp/p"}`), 0644)
+
+	if err := SetField(path, "hide_tags", "retired,Archived,done"); err != nil {
+		t.Fatalf("SetField: %v", err)
+	}
+	cfg, err := Load(path)
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	f, _ := FieldByKey("hide_tags")
+	if got, want := f.Get(&cfg), "archived,done,retired"; got != want {
+		t.Errorf("Get after SetField = %q, want %q", got, want)
+	}
+
+	// An empty value removes the key.
+	if err := SetField(path, "hide_tags", ""); err != nil {
+		t.Fatalf("SetField empty: %v", err)
+	}
+	data, _ := os.ReadFile(path)
+	var raw map[string]json.RawMessage
+	json.Unmarshal(data, &raw)
+	if _, ok := raw["hide_tags"]; ok {
+		t.Error("hide_tags should be removed when set to empty")
 	}
 }
 

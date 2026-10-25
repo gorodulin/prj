@@ -97,8 +97,10 @@ List local projects with titles and tags, optionally filtered by query terms.
 prj list                    # ID, title, tags (local projects only)
 prj list zfs                # filter by substring across ID, title, tags
 prj list moto bike scooter  # multiple terms: match any (OR logic)
-prj list --all              # include metadata-only projects (not present locally)
-prj list --missing          # show only metadata-only projects
+prj list --local            # only projects with a local folder (the default)
+prj list --missing          # only metadata-only projects (not present locally)
+prj list --all              # everything: local, metadata-only, and hidden
+prj list --no-hide          # include projects hidden by hide_tags
 prj list -f json            # JSON array
 prj list -f jsonl           # one JSON object per line
 prj list --json             # shorthand for -f json
@@ -115,6 +117,26 @@ using AND logic. To search metadata-only projects too, use `prj find`.
 The legacy `--tag` flag remains as a deprecated alias for `--tags` for
 one release; it accepts the same comma-separated syntax and is no longer
 repeatable.
+
+#### Hidden projects
+
+Projects tagged with any tag in the [`hide_tags`](#config) config key are
+hidden from `prj list`, `prj find`, and `prj last`. Commands that take a
+project ID (`info`, `path`, `edit`, `link`, …) are not affected.
+
+```bash
+prj config set hide_tags archived,done
+prj list                    # archived and done projects are hidden
+prj list --no-hide          # show them (still local only)
+prj list --tags archived    # explicit --tags lifts hiding for the tags it names
+prj list --all              # everything, hidden included
+```
+
+`--tags` lifts hiding only for the tags it names: `--tags cli` still hides
+a project tagged `archived,cli`. Query terms never lift hiding. When
+projects were hidden and stderr is a terminal, a hint such as
+`2 project(s) hidden by hide_tags; use --no-hide to show them` is printed
+to stderr after the output, so stdout stays clean for JSON and templates.
 
 #### Output formats
 
@@ -199,10 +221,12 @@ Set `list_format` in config to change the default (overridden by `--format`):
 Title is resolved from metadata if configured, otherwise from the first
 `#` heading in the project's `README.md`, otherwise the project ID alone.
 
-By default, only projects with a local folder are shown. `--all` includes
-projects known only through metadata (useful for multi-machine sync).
+By default, only projects with a local folder are shown (`--local`).
 `--missing` shows only metadata-only projects (not present locally).
-`--all` and `--missing` are mutually exclusive.
+`--all` shows every project: local, metadata-only (useful for multi-machine
+sync), and hidden; it implies `--no-hide`. `--local`, `--missing`, and
+`--all` are mutually exclusive; `--local` and `--missing` combine with
+`--no-hide`.
 
 #### Scripting examples
 
@@ -232,6 +256,10 @@ prj find moto bike scooter  # multiple terms: match any (OR logic)
 prj find zfs --tags wip     # tags AND with the query
 prj find --tags wip         # tags only, across all projects
 prj find zfs -f jsonl       # same output formats as list
+prj find zfs --local        # only projects with a local folder
+prj find zfs --missing      # only metadata-only projects
+prj find zfs --no-hide      # include projects hidden by hide_tags
+prj find zfs --all          # same as --no-hide here (find already searches local and metadata-only)
 ```
 
 Same matching as `prj list` (case-insensitive substrings across ID, title,
@@ -240,6 +268,11 @@ search never misses a project just because its folder isn't on this
 machine. Non-local hits are marked in the default output format. At least
 one query term or `--tags` is required.
 
+Projects tagged with a `hide_tags` tag are hidden, as in `prj list` (see
+[Hidden projects](#hidden-projects)): `--no-hide` or `--all` shows them, and
+`--tags` lifts hiding for the tags it names. `--local` and `--missing`
+narrow the search by presence.
+
 ### `prj last [<N>]`
 
 List the N most recent projects (default 1), oldest first.
@@ -247,12 +280,18 @@ List the N most recent projects (default 1), oldest first.
 ```bash
 prj last                    # the newest local project
 prj last 5                  # the five newest
-prj last 5 -a               # include metadata-only projects
+prj last 5 --missing        # the five newest metadata-only projects
+prj last 5 --no-hide        # include projects hidden by hide_tags
+prj last 5 -a               # everything: local, metadata-only, and hidden
 prj last 5 --json           # same output formats as list
 ```
 
 Recency is the creation order encoded in project IDs, so `prj last 5` shows
 the same projects as `prj list | tail -n 5`, but keeps `--json` output valid.
+Hidden projects (see [Hidden projects](#hidden-projects)) are skipped, so
+`prj last` returns the N most recent visible projects. The scope flags
+`--local` (default), `--missing`, `--all`/`-a`, and `--no-hide` work as in
+`prj list`.
 
 ### `prj new`
 
@@ -561,7 +600,8 @@ enable additional features.
   "project_id_prefix": "prj",
   "machine_name": "Newton",
   "machine_id": "newton",
-  "color": "auto"
+  "color": "auto",
+  "hide_tags": ["archived", "done"]
 }
 ```
 
@@ -579,6 +619,7 @@ enable additional features.
 | `link_title_format` | Go template for link names. Fields: `{{.Title}}`, `{{.ID}}`. Supports same functions as `list_format` (`date`, `upper`, `lower`, etc.). Old `{token}` syntax is auto-migrated |
 | `list_format` | Default output format for `prj list`: `json`, `jsonl`, or a Go template (e.g. `"{{.ID}}\t{{.Title}}"`). Overridden by `--format` flag |
 | `link_sink_name` | Fallback folder name for projects that match no tag-based folder (empty = disabled) |
+| `hide_tags` | Projects with any of these tags are hidden from `prj list`, `prj find`, and `prj last` unless `--no-hide`, `--all`, or a matching `--tags` is given. Stored as a JSON array; set with a comma-separated list (`prj config set hide_tags archived,done`), clear with `prj config set hide_tags ""`. Tags are lowercased and `#` is stripped. Unset = nothing hidden |
 | `color` | Colored output mode: `auto` (default, on when stdout is a TTY), `always`, or `never`. Overridden per-invocation by the global `--color=auto\|always\|never` flag; the global `--no-color` flag overrides both. Precedence: `--no-color` → `--color` → this config field → TTY auto-detect |
 
 ## Metadata

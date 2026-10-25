@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -192,5 +193,44 @@ func TestFind_DashTermAfterDoubleDash(t *testing.T) {
 	}
 	if !strings.Contains(out, "No projects match the given query.") {
 		t.Errorf("-foo after -- should be a query term (no match expected), got: %q", out)
+	}
+}
+
+func TestFind_HideTags(t *testing.T) {
+	cfgPath := newHideTagsTestConfig(t)
+
+	tests := []struct {
+		name string
+		args []string
+		want []string
+	}{
+		{"hidden by default", []string{"p2026"}, []string{"p20260101a", "p20260105a"}},
+		{"--no-hide shows hidden", []string{"p2026", "--no-hide"}, []string{"p20260101a", "p20260102a", "p20260103a", "p20260104a", "p20260105a"}},
+		{"--all shows hidden", []string{"p2026", "--all"}, []string{"p20260101a", "p20260102a", "p20260103a", "p20260104a", "p20260105a"}},
+		{"--local narrows to local", []string{"p2026", "--local"}, []string{"p20260101a"}},
+		{"--local --no-hide", []string{"p2026", "--local", "--no-hide"}, []string{"p20260101a", "p20260102a", "p20260103a"}},
+		{"--missing narrows to metadata-only", []string{"p2026", "--missing"}, []string{"p20260105a"}},
+		{"--tags archived lifts hiding", []string{"--tags", "archived"}, []string{"p20260102a", "p20260104a"}},
+		{"--tags cli does not un-hide archived", []string{"--tags", "cli"}, []string{"p20260101a"}},
+		{"query term does not lift hiding", []string{"archived"}, nil},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			args := append([]string{"find", "--config", cfgPath, "--no-color", "-f", "{{.ID}}"}, tt.args...)
+			stdout, err := runFindCommand(t, args)
+			if err != nil {
+				t.Fatalf("find %v: %v", tt.args, err)
+			}
+			if tt.want == nil {
+				if !strings.Contains(stdout, "No projects match the given query.") {
+					t.Errorf("expected no-match message, got %q", stdout)
+				}
+				return
+			}
+			if got := strings.Fields(stdout); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("got %v, want %v", got, tt.want)
+			}
+		})
 	}
 }
